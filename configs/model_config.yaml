@@ -1,0 +1,28 @@
+# Agent 模型配置文件
+# 方便统一管理和切换各个智能体使用的模型
+
+agents:
+  # 版面分析智能体 (Agent-1)
+  modal_identification:
+    model_name: "qwen3.5:9b"
+    embedding_model: "nomic-embed-text"
+    temperature: 0.0
+    seed: 666
+    dimensions: 768
+
+  # 记忆反思智能体 (Memory Agent)
+  memory_agent:
+    model_name: "qwen3.5:9b"
+    temperature: 0.0
+    seed: 666
+
+  # 主协调者 (Main Orchestrator)
+  main_orchestrator:
+    model_name: "qwen3.5:9b"
+    temperature: 0.0
+    seed: 666
+
+# 通用全局设置
+global:
+  default_temperature: 0.0
+  default_seed: 666

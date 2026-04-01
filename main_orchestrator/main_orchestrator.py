@@ -1,0 +1,165 @@
+import asyncio
+import os
+import sys
+import time
+
+import agentscope
+from agentscope.agent import ReActAgent, UserAgent
+from agentscope.formatter import OllamaChatFormatter
+from agentscope.message import Msg
+from agentscope.model import OllamaChatModel
+from agentscope.tool import Toolkit
+
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.chdir(project_root)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+_orchestrator_dir = os.path.dirname(os.path.abspath(__file__))
+if _orchestrator_dir not in sys.path:
+    sys.path.insert(0, _orchestrator_dir)
+
+from step_wrappers import (
+    get_trace_collector,
+    run_step1_modal_recognition,
+    run_step2_parse_extract,
+    run_step3_semantic_standardization,
+    run_step4_data_quality_repair,
+    run_step5_task_oriented_clipping,
+    run_step6_consistency_verification,
+    run_step7_phenotype_knowledge_confirmation,
+)
+from memory_supervisor import get_pipeline_context, report_pipeline_result
+from configs.loader import get_agent_config
+
+
+AGENT_CFG = get_agent_config("main_orchestrator")
+
+
+def _format_orchestrator_summary_content(content) -> str:
+    if isinstance(content, list):
+        text_parts = []
+        fallback_parts = []
+        for block in content:
+            if isinstance(block, dict):
+                block_type = block.get("type")
+                if block_type == "text":
+                    text = str(block.get("text", "")).strip()
+                    if text:
+                        text_parts.append(text)
+                elif block_type == "tool_result":
+                    output = str(block.get("output", "")).strip()
+                    if output:
+                        fallback_parts.append(output)
+            else:
+                fallback_parts.append(str(block).strip())
+
+        combined = "\n".join(part for part in text_parts if part).strip()
+        if combined:
+            return combined
+        return "\n".join(part for part in fallback_parts if part).strip()
+    return str(content).strip()
+
+
+def _build_orchestrator(context_str: str) -> ReActAgent:
+    toolkit = Toolkit()
+    toolkit.register_tool_function(run_step1_modal_recognition)
+    toolkit.register_tool_function(run_step2_parse_extract)
+    toolkit.register_tool_function(run_step3_semantic_standardization)
+    toolkit.register_tool_function(run_step4_data_quality_repair)
+    toolkit.register_tool_function(run_step5_task_oriented_clipping)
+    toolkit.register_tool_function(run_step6_consistency_verification)
+    toolkit.register_tool_function(run_step7_phenotype_knowledge_confirmation)
+
+    sys_prompt = f"""你是数据处理流水线的主协调者 (Orchestrator)。
+你的任务是接收用户输入，并调用工具完成数据处理流水线。
+
+【当前可用步骤】
+1. 调用 `run_step1_modal_recognition` : 数据感知与模态识别
+
+【执行规则】
+1. 当用户输入路径时，使用且仅使用一次 `run_step1_modal_recognition` 工具。
+2. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具，让 Generator 在任务开始前先读 Playbook。
+3. 当你收到 `run_step1_modal_recognition` 工具返回的结果或【最终报告】时，请你直接将报告内容总结输出给用户，然后结束当前任务，绝不要再次调用该工具。
+4. 不要尝试调用不存在的工具。
+5. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
+
+【ACE Playbook (来源于你的 Memory Agent)】
+{context_str}
+"""
+
+    model = OllamaChatModel(
+        model_name=AGENT_CFG.get("model_name", "qwen3.5:4b"),
+        options={
+            "temperature": AGENT_CFG.get("temperature", 0.0),
+            "seed": AGENT_CFG.get("seed", 666),
+        },
+    )
+
+    return ReActAgent(
+        name="MainOrchestrator",
+        sys_prompt=sys_prompt,
+        model=model,
+        formatter=OllamaChatFormatter(),
+        toolkit=toolkit,
+        max_iters=15,
+    )
+
+
+async def main():
+    agentscope.init(project="MultiAgentPipeline", name="MainOrchestrator")
+
+    user = UserAgent(name="User")
+
+    msg = Msg(name="system", content="请输入待处理的图片或文档路径，启动流水线：", role="system")
+    print("\nMainOrchestrator: 请输入待处理的图片或文档路径，启动流水线：")
+
+    while True:
+        try:
+            try:
+                msg = await user(msg)
+            except KeyboardInterrupt:
+                print("\nExiting...")
+                break
+
+            user_input = str(msg.content).strip()
+            if user_input.lower() in ["exit", "quit", "q"]:
+                break
+
+            print("[Orchestrator] 正在按本轮输入检索 ACE Playbook...")
+            context_str, used_bullet_ids = await get_pipeline_context(query_text=user_input)
+            orchestrator = _build_orchestrator(context_str)
+
+            start_time = time.time()
+
+            trace_collector = get_trace_collector()
+            trace_collector.clear()
+
+            orchestrator_task = asyncio.create_task(orchestrator(msg))
+            try:
+                msg = await orchestrator_task
+            except KeyboardInterrupt:
+                await orchestrator.interrupt()
+                msg = await orchestrator_task
+
+            duration = time.time() - start_time
+
+            print(f"\n[Orchestrator] 流水线执行耗时: {duration:.2f}s。准备上报反思...")
+            print(f"[Orchestrator] 共收集到 {len(trace_collector)} 个步骤的完整 Trace。")
+
+            final_summary_text = _format_orchestrator_summary_content(msg.content)
+            trace_payload = trace_collector.build_trace_payload(
+                input_text=user_input,
+                duration_seconds=duration,
+                orchestrator_summary=final_summary_text,
+                retrieved_bullet_ids=used_bullet_ids,
+            )
+
+            memory_feedback = await report_pipeline_result(trace_payload)
+            print(f"\n[Memory Supervisor 反思结果]\n{memory_feedback}\n")
+        except EOFError:
+            break
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

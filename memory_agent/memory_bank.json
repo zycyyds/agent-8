@@ -1,0 +1,108 @@
+{
+  "version": "2.0",
+  "created_at": "2026-03-30T15:21:24.788955",
+  "entries": [
+    {
+      "id": "chk-00001",
+      "content": "混合模态样本处理：必须先完成人工验证并回写结果，再进入数据整理。",
+      "section": "validation_checklist",
+      "helpful_count": 2,
+      "harmful_count": 0,
+      "created_at": "2026-03-30T15:26:06.599943",
+      "last_used": "2026-03-30T18:08:20.318909",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "chk-00002",
+      "content": "检测到混合模态样本时，必须先完成人工验证并回写验证结果，再进入数据整理。",
+      "section": "validation_checklist",
+      "helpful_count": 2,
+      "harmful_count": 0,
+      "created_at": "2026-03-30T15:55:12.556470",
+      "last_used": "2026-03-30T18:08:20.318909",
+      "metadata": {
+        "source": "curator",
+        "duplicate_hits": 2
+      },
+      "status": "active"
+    },
+    {
+      "id": "fail-00001",
+      "content": "结构化输出校验失败时，必须回退至确定性安全规则，禁止生成总结式内容。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 2,
+      "created_at": "2026-03-30T16:06:15.920795",
+      "last_used": "2026-03-30T18:08:20.320392",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00001",
+      "content": "提示中显式给出的数据必须在结构化输出中被准确反映，不得擅自改写或臆造。",
+      "section": "tool_usage",
+      "helpful_count": 3,
+      "harmful_count": 0,
+      "created_at": "2026-03-30T16:47:30.524306",
+      "last_used": "2026-03-30T18:08:20.318909",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00002",
+      "content": "提示中显式给出的兴趣列表必须在 JSON 输出中被准确反映。",
+      "section": "tool_usage",
+      "helpful_count": 2,
+      "harmful_count": 0,
+      "created_at": "2026-03-30T17:02:52.106925",
+      "last_used": "2026-03-30T18:08:20.318909",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00003",
+      "content": "混合模态数据处理必须优先完成人工验证并回写结果，严禁在未验证情况下直接进入数据整理阶段。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-03-30T18:08:04.050821",
+      "last_used": "2026-03-30T18:14:03.879381",
+      "metadata": {
+        "source": "curator",
+        "duplicate_hits": 1
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00004",
+      "content": "混合模态图片必须先调用验证 GUI 并回写结果，确认无误后方可进入数据整理阶段。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-03-31T16:28:08.796870",
+      "last_used": "2026-03-31T16:28:08.796870",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    }
+  ],
+  "statistics": {
+    "total_executions": 10,
+    "unique_strategies": 7,
+    "last_reflection": "2026-03-31T16:28:08.802115",
+    "total_bullets": 7,
+    "last_refine_at": "2026-03-31T16:28:08.802070",
+    "duplicate_merges": 0,
+    "last_query": "rawdata"
+  }
+}
