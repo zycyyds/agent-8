@@ -18,7 +18,7 @@
             "conf": 0.33,
             "imgsz": 1120,
             "device": "mps",
-            "model_path": "doclayout_yolo/model/doclayout_yolo_doclaynet_imgsz1120_docsynth_pretrain.pt",
+            "model_path": "agent_1/doclayout_yolo/model/doclayout_yolo_doclaynet_imgsz1120_docsynth_pretrain.pt",
             "figure_class_id": 6,
             "figure_ratio_threshold": 0.4
           }

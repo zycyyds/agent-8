@@ -25,6 +25,7 @@ except ImportError:
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 指向项目根目录
 MODEL_PATH = os.path.join(
     BASE_DIR,
+    "agent_1",
     "doclayout_yolo",
     "model",
     "doclayout_yolo_doclaynet_imgsz1120_docsynth_pretrain.pt",

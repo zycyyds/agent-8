@@ -2,7 +2,7 @@ import cv2
 from doclayout_yolo import YOLOv10
 
 # Load the pre-trained model
-model = YOLOv10("doclayout_yolo/model/doclayout_yolo_doclaynet_imgsz1120_docsynth_pretrain.pt")
+model = YOLOv10("agent_1/doclayout_yolo/model/doclayout_yolo_doclaynet_imgsz1120_docsynth_pretrain.pt")
 
 # Perform prediction
 det_res = model.predict(

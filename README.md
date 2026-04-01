@@ -27,7 +27,7 @@
 │   │   └── curator.py           # 合并 Delta, 整理和精简记忆库
 │   ├── integration.py           # 对外提供注入 Context 和回传 Record 的接口
 │   └── main.py                  # (测试用) 纯架构演示脚本
-├── doclayout_yolo/              # 底层依赖的视觉检测模型结构
+├── agent_1/doclayout_yolo/      # 底层依赖的视觉检测模型结构
 └── data/                        # 数据集源及运行中产生的文件缓存
 ```
 
