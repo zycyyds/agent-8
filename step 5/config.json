@@ -1,0 +1,16 @@
+{
+    "model_configs": {
+        "dashscope_configs": {
+            "model": "qwen-max",
+            "api_key": "${DASHSCOPE_API_KEY}",
+            "generate_args": {
+                "temperature": 0.7
+            }
+        }
+    },
+    "workflow_configs": {
+        "logging_level": "INFO",
+        "save_dir": "./logs",
+        "use_monitor": true
+    }
+}
