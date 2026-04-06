@@ -1,1 +1,7 @@
 .DS_Store
+rawdata/
+**/__pycache__/
+*.pyc
+*.pyo
+output/
+data/
