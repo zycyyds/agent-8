@@ -1,0 +1,1281 @@
+{
+  "timestamp": "2026-03-17T23:50:23.750853",
+  "task_text": "Analyze vestibular function test results to identify patients with abnormal eye movement patterns",
+  "task_spec": {
+    "task_type": "cohort_selection",
+    "need_modalities": [
+      "Demographics",
+      "Labs"
+    ],
+    "uncertainty": 0.25,
+    "index_event": "",
+    "time_window": "",
+    "privacy_mode": "strict"
+  },
+  "schema_profile": {
+    "dataset_info": {
+      "total_rows": 16,
+      "sampled_rows": 16,
+      "total_columns": 42,
+      "profile_generated_at": "2026-03-17T23:50:23.692301"
+    },
+    "columns": {
+      "patient_id": {
+        "name": "patient_id",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.4375,
+        "examples": [
+          "36907",
+          "36907",
+          "36907",
+          "36907",
+          "37058"
+        ],
+        "numeric_stats": {
+          "mean": 36945.5625,
+          "std": 68.24755795386871,
+          "min": 36906.0,
+          "max": 37061.0,
+          "q25": 36907.0,
+          "q50": 36908.0,
+          "q75": 36946.25
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Identifiers/Keys",
+        "is_constant": false
+      },
+      "folder_category": {
+        "name": "folder_category",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "眼震检查",
+          "眼震检查",
+          "眼震检查",
+          "眼震检查",
+          "眼震检查"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": true
+      },
+      "filename": {
+        "name": "filename",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 1.0,
+        "examples": [
+          "36907(1).jpg",
+          "36907(2).jpg",
+          "36907(3).jpg",
+          "36907(4).jpg",
+          "37058.jpg"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值": {
+        "name": "Extracted_Test__SPV水平峰值",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "尚未分析度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值_1": {
+        "name": "Extracted_Test__SPV水平峰值_1",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "-7 度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值_2": {
+        "name": "Extracted_Test__SPV水平峰值_2",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "-6 度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值_3": {
+        "name": "Extracted_Test__SPV水平峰值_3",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "-13度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视跟踪水平方向分型": {
+        "name": "Extracted_Test__视跟踪水平方向分型",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.1875,
+        "examples": [
+          "III型",
+          "III型",
+          "II型",
+          "II型",
+          "II型"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视动眼震水平方向": {
+        "name": "Extracted_Test__视动眼震水平方向",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "双向视动正常",
+          "双向视动正常",
+          "双向视动正常",
+          "双向视动正常",
+          "双向视动正常"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视动眼震左眼速度": {
+        "name": "Extracted_Test__视动眼震左眼速度",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.6875,
+        "examples": [
+          "0.87",
+          "0.89",
+          "0.85",
+          "1.08",
+          "0.63"
+        ],
+        "numeric_stats": {
+          "mean": 0.7886666666666666,
+          "std": 0.1235120969591161,
+          "min": 0.63,
+          "max": 1.08,
+          "q25": 0.69,
+          "q50": 0.76,
+          "q75": 0.88
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视动眼震右眼速度": {
+        "name": "Extracted_Test__视动眼震右眼速度",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.6875,
+        "examples": [
+          "0.91",
+          "0.76",
+          "0.84",
+          "0.68",
+          "0.72"
+        ],
+        "numeric_stats": {
+          "mean": 0.7646666666666666,
+          "std": 0.09241727317418741,
+          "min": 0.62,
+          "max": 0.91,
+          "q25": 0.6950000000000001,
+          "q50": 0.8,
+          "q75": 0.835
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Dix-Hallpike试验眼震": {
+        "name": "Extracted_Test__Dix-Hallpike试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未做",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Roll-test眼震": {
+        "name": "Extracted_Test__Roll-test眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未做",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__深悬头位试验眼震": {
+        "name": "Extracted_Test__深悬头位试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未做",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__静态位置试验眼震": {
+        "name": "Extracted_Test__静态位置试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.4375,
+        "examples": [
+          "10度/秒",
+          "11度/秒",
+          "10度/秒",
+          "176度/秒",
+          "137度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.5,
+        "examples": [
+          "8 度/秒",
+          "12 度/秒",
+          "14 度/秒",
+          "34 度/秒",
+          "57 度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.4375,
+        "examples": [
+          "6度/秒",
+          "11度/秒",
+          "5度/秒",
+          "24度/秒",
+          "20度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.375,
+        "examples": [
+          "9度/秒",
+          "12度/秒",
+          "9度/秒",
+          "23度/秒",
+          "31度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位": {
+        "name": "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位": {
+        "name": "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "逆时针扭转眼震，持续时间大于1分钟"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Symptom__扫视异常": {
+        "name": "Extracted_Symptom__扫视异常",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见异常",
+          "未见异常",
+          "未见异常",
+          "未见异常",
+          "未见异常"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__凝视异常": {
+        "name": "Extracted_Symptom__凝视异常",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见异常",
+          "未见眼震",
+          "未见异常",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__自发眼震": {
+        "name": "Extracted_Symptom__自发眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__摇头眼震": {
+        "name": "Extracted_Symptom__摇头眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.125,
+        "examples": [
+          "右水平眼震4°/s，持续时间约10秒",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__双侧水平半规管功能异常": {
+        "name": "Extracted_Symptom__双侧水平半规管功能异常",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见明显异常",
+          "未见明显异常",
+          "未见明显异常",
+          "未见明显异常"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__静态位置试验眼震-左侧卧": {
+        "name": "Extracted_Symptom__静态位置试验眼震-左侧卧",
+        "dtype_guess": "object",
+        "missing_rate": 0.8125,
+        "unique_ratio": 0.1875,
+        "examples": [
+          "可见右水平眼震眼震，速度4°/s，持续时间约40秒",
+          "可见下跳眼震，速度3°/s，持续时间约10秒",
+          "可见下跳眼震，速度5°/s，持续时间约25秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__静态位置试验眼震-悬头位": {
+        "name": "Extracted_Symptom__静态位置试验眼震-悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.125,
+        "examples": [
+          "可见右水平眼震，速度2°/s，持续时间大于1分钟",
+          "可见下跳眼震，速度3°/s，持续时间约30秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__静态位置试验眼震-仰卧位": {
+        "name": "Extracted_Symptom__静态位置试验眼震-仰卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.125,
+        "examples": [
+          "可见下跳眼震，速度5°/s，持续时间大于1分钟",
+          "可见下跳眼震，速度3°/s，持续时间约30秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__静态位置试验眼震-右侧卧": {
+        "name": "Extracted_Symptom__静态位置试验眼震-右侧卧",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.125,
+        "examples": [
+          "可见下跳眼震，速度7°/s，持续时间约5秒",
+          "可见左水眼震，速度3°/s，持续时间大于1分钟"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__静态位置试验眼震-悬头左侧": {
+        "name": "Extracted_Symptom__静态位置试验眼震-悬头左侧",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "可见下跳眼震，速度9°/s，持续时间约10秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Dix-Hallpike试验眼震-坐起后": {
+        "name": "Extracted_Symptom__Dix-Hallpike试验眼震-坐起后",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.1875,
+        "examples": [
+          "顺时针扭转+上跳眼震，速度6°/s，持续时间大于1分钟",
+          "顺时针扭转+上跳眼震，速度9°/s，持续时间大于1分钟",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Dix-Hallpike试验眼震-坐起后_1": {
+        "name": "Extracted_Symptom__Dix-Hallpike试验眼震-坐起后_1",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "顺时针扭转+上跳眼震，速度3°/s，持续时间大于1分钟"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Roll-test眼震-左侧卧位": {
+        "name": "Extracted_Symptom__Roll-test眼震-左侧卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.25,
+        "examples": [
+          "顺时针扭转+上跳眼震，速度16°/s，持续时间大于1分钟",
+          "顺时针扭转+上跳眼震，速度23°/s，持续时间大于1分钟",
+          "上跳眼震，速度3°/s，持续时间大于1分钟",
+          "左水平眼震，速度13°/s，持续时间约10秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Roll-test眼震-仰卧位": {
+        "name": "Extracted_Symptom__Roll-test眼震-仰卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.25,
+        "examples": [
+          "上跳眼震，速度5°/s，持续时间约30秒",
+          "顺时针扭转+上跳眼震，速度14°/s，持续时间大于1分钟",
+          "上跳眼震，速度4°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度3°/s，持续时间约30秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Roll-test眼震-右侧卧位": {
+        "name": "Extracted_Symptom__Roll-test眼震-右侧卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.25,
+        "examples": [
+          "未见眼震",
+          "逆时针扭转+上跳眼震，速度3°/s，持续时间大于1分钟",
+          "上跳眼震，速度5°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度45°/s，持续时间约30秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__深悬头位试验眼震": {
+        "name": "Extracted_Symptom__深悬头位试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.8125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "逆时针扭转+下跳眼震，速度7°/s，持续时间大于1分钟",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__静态位置试验眼震": {
+        "name": "Extracted_Symptom__静态位置试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.5,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Dix-Hallpike试验眼震-左侧悬头位": {
+        "name": "Extracted_Symptom__Dix-Hallpike试验眼震-左侧悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.125,
+        "examples": [
+          "左水平眼震眼震，速度6°/s，持续时间大于1分钟",
+          "左水平眼震眼震，速度9°/s，持续时间约10秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Dix-Hallpike试验眼震-右侧悬头位": {
+        "name": "Extracted_Symptom__Dix-Hallpike试验眼震-右侧悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.8125,
+        "unique_ratio": 0.1875,
+        "examples": [
+          "逆时针扭转+下跳眼震，速度8°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度3°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度2°/s，持续时间约20秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__深悬头位试验眼震-坐起后": {
+        "name": "Extracted_Symptom__深悬头位试验眼震-坐起后",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.125,
+        "examples": [
+          "顺时针扭转+上跳眼震，速度6°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度3°/s，持续时间约20秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__深悬头位试验眼震-未见": {
+        "name": "Extracted_Symptom__深悬头位试验眼震-未见",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      }
+    }
+  },
+  "llm_input_profile": {
+    "dataset_info": {
+      "total_rows": 16,
+      "sampled_rows": 16,
+      "total_columns": 42,
+      "profile_generated_at": "2026-03-17T23:50:23.692301",
+      "total_columns_before_prefilter": 42,
+      "columns_after_prefilter": 41,
+      "columns_passed_to_selector": 22,
+      "dropped_constant_or_all_missing_count": 1,
+      "dropped_phi_in_strict_count": 0,
+      "task_keywords_used": [
+        "vestibular",
+        "function",
+        "test",
+        "results",
+        "abnormal",
+        "eye",
+        "movement",
+        "patterns"
+      ]
+    },
+    "columns": {
+      "patient_id": {
+        "name": "patient_id",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.4375,
+        "examples": [
+          "36907",
+          "36907",
+          "36907",
+          "36907",
+          "37058"
+        ],
+        "numeric_stats": {
+          "mean": 36945.5625,
+          "std": 68.24755795386871,
+          "min": 36906.0,
+          "max": 37061.0,
+          "q25": 36907.0,
+          "q50": 36908.0,
+          "q75": 36946.25
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Identifiers/Keys",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值": {
+        "name": "Extracted_Test__SPV水平峰值",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "尚未分析度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值_1": {
+        "name": "Extracted_Test__SPV水平峰值_1",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "-7 度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值_2": {
+        "name": "Extracted_Test__SPV水平峰值_2",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "-6 度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__SPV水平峰值_3": {
+        "name": "Extracted_Test__SPV水平峰值_3",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "-13度/s"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视跟踪水平方向分型": {
+        "name": "Extracted_Test__视跟踪水平方向分型",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.1875,
+        "examples": [
+          "III型",
+          "III型",
+          "II型",
+          "II型",
+          "II型"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视动眼震水平方向": {
+        "name": "Extracted_Test__视动眼震水平方向",
+        "dtype_guess": "object",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "双向视动正常",
+          "双向视动正常",
+          "双向视动正常",
+          "双向视动正常",
+          "双向视动正常"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视动眼震左眼速度": {
+        "name": "Extracted_Test__视动眼震左眼速度",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.6875,
+        "examples": [
+          "0.87",
+          "0.89",
+          "0.85",
+          "1.08",
+          "0.63"
+        ],
+        "numeric_stats": {
+          "mean": 0.7886666666666666,
+          "std": 0.1235120969591161,
+          "min": 0.63,
+          "max": 1.08,
+          "q25": 0.69,
+          "q50": 0.76,
+          "q75": 0.88
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__视动眼震右眼速度": {
+        "name": "Extracted_Test__视动眼震右眼速度",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0625,
+        "unique_ratio": 0.6875,
+        "examples": [
+          "0.91",
+          "0.76",
+          "0.84",
+          "0.68",
+          "0.72"
+        ],
+        "numeric_stats": {
+          "mean": 0.7646666666666666,
+          "std": 0.09241727317418741,
+          "min": 0.62,
+          "max": 0.91,
+          "q25": 0.6950000000000001,
+          "q50": 0.8,
+          "q75": 0.835
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Dix-Hallpike试验眼震": {
+        "name": "Extracted_Test__Dix-Hallpike试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未做",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Roll-test眼震": {
+        "name": "Extracted_Test__Roll-test眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未做",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__深悬头位试验眼震": {
+        "name": "Extracted_Test__深悬头位试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.125,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未做",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__静态位置试验眼震": {
+        "name": "Extracted_Test__静态位置试验眼震",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见眼震",
+          "未见眼震",
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.4375,
+        "examples": [
+          "10度/秒",
+          "11度/秒",
+          "10度/秒",
+          "176度/秒",
+          "137度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.5,
+        "examples": [
+          "8 度/秒",
+          "12 度/秒",
+          "14 度/秒",
+          "34 度/秒",
+          "57 度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.4375,
+        "examples": [
+          "6度/秒",
+          "11度/秒",
+          "5度/秒",
+          "24度/秒",
+          "20度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C": {
+        "name": "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C",
+        "dtype_guess": "object",
+        "missing_rate": 0.3125,
+        "unique_ratio": 0.375,
+        "examples": [
+          "9度/秒",
+          "12度/秒",
+          "9度/秒",
+          "23度/秒",
+          "31度/秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位": {
+        "name": "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.875,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "未见眼震",
+          "未见眼震"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位": {
+        "name": "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位",
+        "dtype_guess": "object",
+        "missing_rate": 0.9375,
+        "unique_ratio": 0.0625,
+        "examples": [
+          "逆时针扭转眼震，持续时间大于1分钟"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Roll-test眼震-左侧卧位": {
+        "name": "Extracted_Symptom__Roll-test眼震-左侧卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.25,
+        "examples": [
+          "顺时针扭转+上跳眼震，速度16°/s，持续时间大于1分钟",
+          "顺时针扭转+上跳眼震，速度23°/s，持续时间大于1分钟",
+          "上跳眼震，速度3°/s，持续时间大于1分钟",
+          "左水平眼震，速度13°/s，持续时间约10秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Roll-test眼震-仰卧位": {
+        "name": "Extracted_Symptom__Roll-test眼震-仰卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.25,
+        "examples": [
+          "上跳眼震，速度5°/s，持续时间约30秒",
+          "顺时针扭转+上跳眼震，速度14°/s，持续时间大于1分钟",
+          "上跳眼震，速度4°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度3°/s，持续时间约30秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "Extracted_Symptom__Roll-test眼震-右侧卧位": {
+        "name": "Extracted_Symptom__Roll-test眼震-右侧卧位",
+        "dtype_guess": "object",
+        "missing_rate": 0.75,
+        "unique_ratio": 0.25,
+        "examples": [
+          "未见眼震",
+          "逆时针扭转+上跳眼震，速度3°/s，持续时间大于1分钟",
+          "上跳眼震，速度5°/s，持续时间大于1分钟",
+          "右水平眼震眼震，速度45°/s，持续时间约30秒"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      }
+    }
+  },
+  "agent_decisions": {
+    "must_have_columns": [
+      "Extracted_Test__SPV水平峰值",
+      "Extracted_Test__SPV水平峰值_1",
+      "Extracted_Test__SPV水平峰值_2",
+      "Extracted_Test__SPV水平峰值_3",
+      "Extracted_Test__视跟踪水平方向分型",
+      "Extracted_Test__视动眼震水平方向",
+      "Extracted_Test__视动眼震左眼速度",
+      "Extracted_Test__视动眼震右眼速度",
+      "Extracted_Test__Dix-Hallpike试验眼震",
+      "Extracted_Test__Roll-test眼震",
+      "Extracted_Test__深悬头位试验眼震",
+      "Extracted_Test__静态位置试验眼震",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C",
+      "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位",
+      "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位"
+    ],
+    "useful_columns": [
+      "patient_id"
+    ],
+    "maybe_columns": [],
+    "drop_columns": [
+      "Extracted_Symptom__Roll-test眼震-左侧卧位",
+      "Extracted_Symptom__Roll-test眼震-仰卧位",
+      "Extracted_Symptom__Roll-test眼震-右侧卧位"
+    ],
+    "reason_by_column": {
+      "patient_id": "Task-supporting identifier for joins, grouping, deduplication, or traceability",
+      "Extracted_Test__SPV水平峰值": "Directly related to required modality: Labs",
+      "Extracted_Test__SPV水平峰值_1": "Directly related to required modality: Labs",
+      "Extracted_Test__SPV水平峰值_2": "Directly related to required modality: Labs",
+      "Extracted_Test__SPV水平峰值_3": "Directly related to required modality: Labs",
+      "Extracted_Test__视跟踪水平方向分型": "Directly related to required modality: Labs",
+      "Extracted_Test__视动眼震水平方向": "Directly related to required modality: Labs",
+      "Extracted_Test__视动眼震左眼速度": "Directly related to required modality: Labs",
+      "Extracted_Test__视动眼震右眼速度": "Directly related to required modality: Labs",
+      "Extracted_Test__Dix-Hallpike试验眼震": "Directly related to required modality: Labs",
+      "Extracted_Test__Roll-test眼震": "Directly related to required modality: Labs",
+      "Extracted_Test__深悬头位试验眼震": "Directly related to required modality: Labs",
+      "Extracted_Test__静态位置试验眼震": "Directly related to required modality: Labs",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C": "Directly related to required modality: Labs",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C": "Directly related to required modality: Labs",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C": "Directly related to required modality: Labs",
+      "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C": "Directly related to required modality: Labs",
+      "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位": "Directly related to required modality: Labs",
+      "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位": "Directly related to required modality: Labs",
+      "Extracted_Symptom__Roll-test眼震-左侧卧位": "Not relevant to required modalities: ['Demographics', 'Labs']",
+      "Extracted_Symptom__Roll-test眼震-仰卧位": "Not relevant to required modalities: ['Demographics', 'Labs']",
+      "Extracted_Symptom__Roll-test眼震-右侧卧位": "Not relevant to required modalities: ['Demographics', 'Labs']"
+    },
+    "warnings": [],
+    "transform_suggestions": {},
+    "task_spec": {
+      "task_type": "cohort_selection",
+      "need_modalities": [
+        "Demographics",
+        "Labs"
+      ],
+      "uncertainty": 0.25,
+      "index_event": "",
+      "time_window": "",
+      "privacy_mode": "strict"
+    }
+  },
+  "hard_gate_overrides": [
+    {
+      "column": "Extracted_Test__SPV水平峰值",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__SPV水平峰值_1",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__SPV水平峰值_2",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__SPV水平峰值_3",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__视跟踪水平方向分型",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__视动眼震水平方向",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__Dix-Hallpike试验眼震",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__Roll-test眼震",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__深悬头位试验眼震",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__静态位置试验眼震",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    }
+  ],
+  "final_columns": [
+    "patient_id",
+    "Extracted_Test__SPV水平峰值",
+    "Extracted_Test__SPV水平峰值_1",
+    "Extracted_Test__SPV水平峰值_2",
+    "Extracted_Test__SPV水平峰值_3",
+    "Extracted_Test__视跟踪水平方向分型",
+    "Extracted_Test__视动眼震水平方向",
+    "Extracted_Test__视动眼震左眼速度",
+    "Extracted_Test__视动眼震右眼速度",
+    "Extracted_Test__Dix-Hallpike试验眼震",
+    "Extracted_Test__Roll-test眼震",
+    "Extracted_Test__深悬头位试验眼震",
+    "Extracted_Test__静态位置试验眼震",
+    "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧50°C",
+    "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧50°C",
+    "Extracted_Test__前庭双温评价-眼震方向慢向角速度右侧24°C",
+    "Extracted_Test__前庭双温评价-眼震方向慢向角速度左侧24°C",
+    "Extracted_Test__Dix-Hallpike试验眼震-左侧悬头位",
+    "Extracted_Test__Dix-Hallpike试验眼震-右侧悬头位"
+  ],
+  "warnings": [
+    "Task requires temporal analysis but no time columns detected in data"
+  ],
+  "config_used": {
+    "privacy_mode": "strict",
+    "keep_free_text": false,
+    "max_rows_profile": 1000,
+    "max_final_columns": 100,
+    "sampling_method": "random",
+    "random_seed": 42,
+    "model_name": "dashscope/qwen-max"
+  }
+}

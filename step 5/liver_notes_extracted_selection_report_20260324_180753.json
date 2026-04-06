@@ -1,0 +1,3053 @@
+{
+  "timestamp": "2026-03-24T18:07:53.220252",
+  "task_text": "Identify factors associated with mortality risk and length of stay among hospitalized patients with cirrhosis or hepatic failure.",
+  "task_spec": {
+    "task_type": "cohort_selection",
+    "need_modalities": [
+      "Identifiers/Keys",
+      "Time",
+      "Demographics",
+      "Encounter",
+      "Diagnosis",
+      "Medication",
+      "Labs",
+      "Vitals",
+      "Procedures",
+      "Outcomes"
+    ],
+    "uncertainty": 0.9,
+    "index_event": "Hospital admission for cirrhosis or hepatic failure",
+    "time_window": "During hospitalization and at discharge",
+    "privacy_mode": "strict"
+  },
+  "column_counts": {
+    "original_column_count": 71,
+    "prefiltered_column_count": 60,
+    "selector_candidate_column_count": 60,
+    "final_column_count": 57
+  },
+  "agent_execution": {
+    "task_planner_mode": "llm",
+    "task_planner_error": null,
+    "task_planner_raw_response": "{\n  \"task_type\": \"cohort_selection\",\n  \"need_modalities\": [\n    \"Identifiers/Keys\",\n    \"Time\",\n    \"Demographics\",\n    \"Encounter\",\n    \"Diagnosis\",\n    \"Medication\",\n    \"Labs\",\n    \"Vitals\",\n    \"Procedures\",\n    \"Outcomes\"\n  ],\n  \"index_event\": \"Hospital admission for cirrhosis or hepatic failure\",\n  \"time_window\": \"During hospitalization and at discharge\",\n  \"uncertainty\": 0.9\n}",
+    "column_selector_mode": "llm",
+    "column_selector_error": null,
+    "column_selector_raw_response": "{\n  \"must_have_columns\": [\"record_index\", \"入院时间\", \"出院时间\", \"年龄_入院时\", \"性别\", \"主诊断_icd_code\", \"主诊断_icd_title\", \"诊断总数\", \"所有诊断_icd_codes\", \"手术操作总数\", \"所有手术操作_codes\", \"所有手术操作_titles\", \"用药总数\", \"所有用药\", \"体温_C\", \"脉搏_次每分\", \"呼吸_次每分\", \"收缩压\", \"舒张压\", \"总胆红素\", \"直接胆红素\", \"ALT\", \"AST\", \"碱性磷酸酶\", \"GGT\", \"INR\", \"身高_cm\", \"体重_kg\", \"BMI\", \"实验室检验_事件数\", \"实验室检验_摘要\"],\n  \"useful_columns\": [\"入院科室\", \"入院类型\", \"住院天数\", \"死亡时间\", \"Lab_Alanine Aminotransferase (ALT)\", \"Lab_Alkaline Phosphatase\", \"Lab_Creatinine\", \"Lab_Platelet Count\", \"Lab_Hematocrit\", \"Lab_Hemoglobin\", \"Lab_Potassium\", \"note_index\", \"note_type\", \"note_charttime\", \"抽取_Disease\", \"抽取_Drug\", \"抽取_Symptom\", \"抽取_Test\", \"抽取_Treatment\", \"抽取_LabValue\", \"抽取_Finding\"],\n  \"maybe_columns\": [\"temporal_info\", \"quantity_info\", \"impression\", \"indication\", \"relations\"],\n  \"drop_columns\": [],\n  \"reason_by_column\": {\n    \"record_index\": \"Essential for traceability and joining with other datasets.\",\n    \"入院时间\": \"Important for defining the time window of the index event (hospital admission).\",\n    \"出院时间\": \"Relevant for understanding the duration of the hospital stay.\",\n    \"年龄_入院时\": \"Demographic information is crucial for cohort selection.\",\n    \"性别\": \"Demographic information is crucial for cohort selection.\",\n    \"主诊断_icd_code\": \"Primary diagnosis is essential for identifying patients with cirrhosis or hepatic failure.\",\n    \"主诊断_icd_title\": \"Provides a clear description of the primary diagnosis.\",\n    \"诊断总数\": \"Useful for understanding the complexity of the patient's condition.\",\n    \"所有诊断_icd_codes\": \"Helps in identifying all relevant diagnoses for the patient.\",\n    \"手术操作总数\": \"Important for understanding the number of procedures performed during the hospitalization.\",\n    \"所有手术操作_codes\": \"Provides detailed information about the surgical procedures.\",\n    \"所有手术操作_titles\": \"Provides a clear description of the surgical procedures.\",\n    \"用药总数\": \"Relevant for understanding the medication regimen during the hospitalization.\",\n    \"所有用药\": \"Provides detailed information about the medications used.\",\n    \"体温_C\": \"Vital sign, important for monitoring the patient's condition.\",\n    \"脉搏_次每分\": \"Vital sign, important for monitoring the patient's condition.\",\n    \"呼吸_次每分\": \"Vital sign, important for monitoring the patient's condition.\",\n    \"收缩压\": \"Vital sign, important for monitoring the patient's condition.\",\n    \"舒张压\": \"Vital sign, important for monitoring the patient's condition.\",\n    \"总胆红素\": \"Relevant lab value for liver function.\",\n    \"直接胆红素\": \"Relevant lab value for liver function.\",\n    \"ALT\": \"Relevant lab value for liver function.\",\n    \"AST\": \"Relevant lab value for liver function.\",\n    \"碱性磷酸酶\": \"Relevant lab value for liver function.\",\n    \"GGT\": \"Relevant lab value for liver function.\",\n    \"INR\": \"Relevant lab value for coagulation status, important in liver disease.\",\n    \"身高_cm\": \"Demographic information, useful for BMI calculation.\",\n    \"体重_kg\": \"Demographic information, useful for BMI calculation.\",\n    \"BMI\": \"Demographic information, useful for assessing body composition.\",\n    \"实验室检验_事件数\": \"Relevant for understanding the frequency of lab tests.\",\n    \"实验室检验_摘要\": \"Provides a summary of all laboratory test results, which is crucial for the task.\"\n  },\n  \"warnings\": [\"Some columns like '抽取_Anatomy' and '抽取_Finding' may contain detailed anatomical and clinical findings that could be PHI. Ensure proper de-identification before use.\"],\n  \"transform_suggestions\": {\n    \"入院时间\": \"Convert to relative days from the index event (hospital admission).\",\n    \"出院时间\": \"Convert to relative days from the index event (hospital admission).\",\n    \"note_charttime\": \"Convert to relative days from the index event (hospital admission).\"\n  }\n}",
+    "column_selector_normalization_info": {
+      "must_have_unmatched": [],
+      "useful_unmatched": [],
+      "maybe_unmatched": [],
+      "drop_unmatched": [],
+      "reason_unmatched": [],
+      "transform_unmatched": []
+    }
+  },
+  "schema_profile": {
+    "dataset_info": {
+      "total_rows": 78,
+      "sampled_rows": 78,
+      "total_columns": 71,
+      "profile_generated_at": "2026-03-24T18:06:10.575979"
+    },
+    "columns": {
+      "record_index": {
+        "name": "record_index",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "1",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "numeric_stats": {
+          "mean": 5.512820512820513,
+          "std": 3.963284711905733,
+          "min": 1.0,
+          "max": 13.0,
+          "q25": 3.0,
+          "q50": 3.0,
+          "q75": 9.75
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "入院时间": {
+        "name": "入院时间",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "2129-07-03 03:31:00",
+          "2149-02-11 21:49:00",
+          "2149-02-11 21:49:00",
+          "2149-02-11 21:49:00",
+          "2149-02-11 21:49:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "出院时间": {
+        "name": "出院时间",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "2129-07-05 14:48:00",
+          "2149-02-14 16:45:00",
+          "2149-02-14 16:45:00",
+          "2149-02-14 16:45:00",
+          "2149-02-14 16:45:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "入院科室": {
+        "name": "入院科室",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "PHYSICIAN REFERRAL",
+          "EMERGENCY ROOM",
+          "EMERGENCY ROOM",
+          "EMERGENCY ROOM",
+          "EMERGENCY ROOM"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "出院去向": {
+        "name": "出院去向",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.05128205128205128,
+        "examples": [
+          "HOME",
+          "HOME",
+          "HOME",
+          "HOME",
+          "HOME"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "入院类型": {
+        "name": "入院类型",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "DIRECT EMER.",
+          "OBSERVATION ADMIT",
+          "OBSERVATION ADMIT",
+          "OBSERVATION ADMIT",
+          "OBSERVATION ADMIT"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "死亡时间": {
+        "name": "死亡时间",
+        "dtype_guess": "object",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "住院天数": {
+        "name": "住院天数",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "2.47",
+          "2.79",
+          "2.79",
+          "2.79",
+          "2.79"
+        ],
+        "numeric_stats": {
+          "mean": 22.200641025641026,
+          "std": 13.208722063272758,
+          "min": 0.32,
+          "max": 61.8,
+          "q25": 12.5975,
+          "q50": 31.31,
+          "q75": 31.31
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "年龄_入院时": {
+        "name": "年龄_入院时",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "54",
+          "60",
+          "60",
+          "60",
+          "60"
+        ],
+        "numeric_stats": {
+          "mean": 67.32051282051282,
+          "std": 8.232803549159561,
+          "min": 42.0,
+          "max": 91.0,
+          "q25": 65.25,
+          "q50": 69.0,
+          "q75": 69.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Demographics",
+        "is_constant": false
+      },
+      "性别": {
+        "name": "性别",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "M",
+          "M",
+          "M",
+          "M",
+          "M"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Demographics",
+        "is_constant": false
+      },
+      "种族": {
+        "name": "种族",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": true
+      },
+      "主诊断_icd_code": {
+        "name": "主诊断_icd_code",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.08974358974358974,
+        "examples": [
+          "K7460",
+          "K7469",
+          "K7469",
+          "K7469",
+          "K7469"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "主诊断_icd_title": {
+        "name": "主诊断_icd_title",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.08974358974358974,
+        "examples": [
+          "Unspecified cirrhosis of liver",
+          "Other cirrhosis of liver",
+          "Other cirrhosis of liver",
+          "Other cirrhosis of liver",
+          "Other cirrhosis of liver"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "诊断总数": {
+        "name": "诊断总数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "1",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "numeric_stats": {
+          "mean": 2.871794871794872,
+          "std": 1.3897488735026666,
+          "min": 1.0,
+          "max": 4.0,
+          "q25": 1.0,
+          "q50": 4.0,
+          "q75": 4.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "所有诊断_icd_codes": {
+        "name": "所有诊断_icd_codes",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "K7460",
+          "K7469; K7290",
+          "K7469; K7290",
+          "K7469; K7290",
+          "K7469; K7290"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "手术操作总数": {
+        "name": "手术操作总数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "numeric_stats": {
+          "mean": 1.205128205128205,
+          "std": 0.9717967608450564,
+          "min": 0.0,
+          "max": 2.0,
+          "q25": 0.0,
+          "q50": 2.0,
+          "q75": 2.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "所有手术操作_codes": {
+        "name": "所有手术操作_codes",
+        "dtype_guess": "object",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "3E03317",
+          "3E0G76Z; 3E0436Z",
+          "3E0G76Z; 3E0436Z",
+          "3E0G76Z; 3E0436Z",
+          "3E0G76Z; 3E0436Z"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "所有手术操作_titles": {
+        "name": "所有手术操作_titles",
+        "dtype_guess": "object",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "Introduction of Other Thrombolytic into Peripheral Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "用药总数": {
+        "name": "用药总数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.10256410256410256,
+        "examples": [
+          "5",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "numeric_stats": {
+          "mean": 5.282051282051282,
+          "std": 3.6534894755542062,
+          "min": 0.0,
+          "max": 26.0,
+          "q25": 2.0,
+          "q50": 7.0,
+          "q75": 7.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Medication",
+        "is_constant": false
+      },
+      "所有用药": {
+        "name": "所有用药",
+        "dtype_guess": "object",
+        "missing_rate": 0.1282051282051282,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "Lactulose; Lactulose; Lactulose; Lactulose; Nadolol",
+          "Spironolactone; Furosemide; Lactulose",
+          "Spironolactone; Furosemide; Lactulose",
+          "Spironolactone; Furosemide; Lactulose",
+          "Spironolactone; Furosemide; Lactulose"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Medication",
+        "is_constant": false
+      },
+      "体温_C": {
+        "name": "体温_C",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "82.32108108108109",
+          "82.32108108108109",
+          "82.32108108108109",
+          "82.32108108108109",
+          "82.32108108108109"
+        ],
+        "numeric_stats": {
+          "mean": 85.80714963731586,
+          "std": 6.615147679745364,
+          "min": 82.32108108108109,
+          "max": 98.92470588235294,
+          "q25": 82.32108108108109,
+          "q50": 82.32108108108109,
+          "q75": 82.32108108108109
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "脉搏_次每分": {
+        "name": "脉搏_次每分",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "83.50671785028791",
+          "83.50671785028791",
+          "83.50671785028791",
+          "83.50671785028791",
+          "83.50671785028791"
+        ],
+        "numeric_stats": {
+          "mean": 87.0937857517521,
+          "std": 9.069715748267097,
+          "min": 71.88785046728972,
+          "max": 106.57894736842104,
+          "q25": 83.50671785028791,
+          "q50": 83.50671785028791,
+          "q75": 83.50671785028791
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "呼吸_次每分": {
+        "name": "呼吸_次每分",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "21.536538461538463",
+          "21.536538461538463",
+          "21.536538461538463",
+          "21.536538461538463",
+          "21.536538461538463"
+        ],
+        "numeric_stats": {
+          "mean": 20.992943120513953,
+          "std": 1.612253597836651,
+          "min": 13.401869158878505,
+          "max": 25.333333333333332,
+          "q25": 21.536538461538463,
+          "q50": 21.536538461538463,
+          "q75": 21.536538461538463
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "收缩压": {
+        "name": "收缩压",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "117.04889975550122",
+          "117.04889975550122",
+          "117.04889975550122",
+          "117.04889975550122",
+          "117.04889975550122"
+        ],
+        "numeric_stats": {
+          "mean": 118.05549492852391,
+          "std": 5.4730805475448365,
+          "min": 117.04889975550122,
+          "max": 153.23333333333332,
+          "q25": 117.04889975550122,
+          "q50": 117.04889975550122,
+          "q75": 117.04889975550122
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "舒张压": {
+        "name": "舒张压",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "56.728606356968214",
+          "56.728606356968214",
+          "56.728606356968214",
+          "56.728606356968214",
+          "56.728606356968214"
+        ],
+        "numeric_stats": {
+          "mean": 56.99879852504473,
+          "std": 1.349454399435143,
+          "min": 56.728606356968214,
+          "max": 64.79310344827586,
+          "q25": 56.728606356968214,
+          "q50": 56.728606356968214,
+          "q75": 56.728606356968214
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "总胆红素": {
+        "name": "总胆红素",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "22.053846153846155",
+          "22.053846153846155",
+          "22.053846153846155",
+          "22.053846153846155",
+          "22.053846153846155"
+        ],
+        "numeric_stats": {
+          "mean": 22.108150183150187,
+          "std": 0.48523461456935335,
+          "min": 21.38095238095238,
+          "max": 25.333333333333332,
+          "q25": 22.053846153846155,
+          "q50": 22.053846153846155,
+          "q75": 22.053846153846155
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "直接胆红素": {
+        "name": "直接胆红素",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "65.6829268292683",
+          "65.6829268292683",
+          "65.6829268292683",
+          "65.6829268292683",
+          "65.6829268292683"
+        ],
+        "numeric_stats": {
+          "mean": 64.49201559085809,
+          "std": 11.772801011892113,
+          "min": 12.785714285714286,
+          "max": 76.0,
+          "q25": 65.6829268292683,
+          "q50": 65.6829268292683,
+          "q75": 65.6829268292683
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "ALT": {
+        "name": "ALT",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "5.819230769230769",
+          "5.819230769230769",
+          "5.819230769230769",
+          "5.819230769230769",
+          "5.819230769230769"
+        ],
+        "numeric_stats": {
+          "mean": 4.801434159061281,
+          "std": 1.9613116707590572,
+          "min": 0.8500000000000001,
+          "max": 5.819230769230769,
+          "q25": 5.819230769230769,
+          "q50": 5.819230769230769,
+          "q75": 5.819230769230769
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "AST": {
+        "name": "AST",
+        "dtype_guess": "float64",
+        "missing_rate": 0.2564102564102564,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "1.1134375",
+          "1.1134375",
+          "1.1134375",
+          "1.1134375",
+          "1.1134375"
+        ],
+        "numeric_stats": {
+          "mean": 8621.783301005744,
+          "std": 65653.08634098903,
+          "min": 1.06,
+          "max": 500000.12,
+          "q25": 1.1134375,
+          "q50": 1.1134375,
+          "q75": 1.1134375
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "碱性磷酸酶": {
+        "name": "碱性磷酸酶",
+        "dtype_guess": "float64",
+        "missing_rate": 0.358974358974359,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "15.257692307692306",
+          "15.257692307692306",
+          "15.257692307692306",
+          "15.257692307692306",
+          "15.257692307692306"
+        ],
+        "numeric_stats": {
+          "mean": 14.587776923076921,
+          "std": 2.91757859035158,
+          "min": 0.7,
+          "max": 15.257692307692306,
+          "q25": 15.257692307692306,
+          "q50": 15.257692307692306,
+          "q75": 15.257692307692306
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "GGT": {
+        "name": "GGT",
+        "dtype_guess": "float64",
+        "missing_rate": 0.3974358974358974,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "1.0",
+          "1.0",
+          "1.0",
+          "1.0",
+          "1.0"
+        ],
+        "numeric_stats": {
+          "mean": 1.0851063829787233,
+          "std": 0.5834599659915782,
+          "min": 1.0,
+          "max": 5.0,
+          "q25": 1.0,
+          "q50": 1.0,
+          "q75": 1.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "总蛋白": {
+        "name": "总蛋白",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": true
+      },
+      "白蛋白": {
+        "name": "白蛋白",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": true
+      },
+      "INR": {
+        "name": "INR",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "3.65",
+          "3.65",
+          "3.65",
+          "3.65",
+          "3.65"
+        ],
+        "numeric_stats": {
+          "mean": 3.634895833333333,
+          "std": 0.07679407102095599,
+          "min": 3.175,
+          "max": 3.65,
+          "q25": 3.65,
+          "q50": 3.65,
+          "q75": 3.65
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "身高_cm": {
+        "name": "身高_cm",
+        "dtype_guess": "float64",
+        "missing_rate": 0.3717948717948718,
+        "unique_ratio": 0.05128205128205128,
+        "examples": [
+          "129.0",
+          "129.0",
+          "129.0",
+          "129.0",
+          "129.0"
+        ],
+        "numeric_stats": {
+          "mean": 128.76530612244898,
+          "std": 1.7532768155190825,
+          "min": 117.0,
+          "max": 131.0,
+          "q25": 129.0,
+          "q50": 129.0,
+          "q75": 129.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "体重_kg": {
+        "name": "体重_kg",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "155.13333333333333",
+          "155.13333333333333",
+          "155.13333333333333",
+          "155.13333333333333",
+          "155.13333333333333"
+        ],
+        "numeric_stats": {
+          "mean": 142.7847457627119,
+          "std": 31.22868273503197,
+          "min": 76.2,
+          "max": 232.03333333333333,
+          "q25": 155.13333333333333,
+          "q50": 155.13333333333333,
+          "q75": 155.13333333333333
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "BMI": {
+        "name": "BMI",
+        "dtype_guess": "float64",
+        "missing_rate": 0.3717948717948718,
+        "unique_ratio": 0.05128205128205128,
+        "examples": [
+          "93.22356428900504",
+          "93.22356428900504",
+          "93.22356428900504",
+          "93.22356428900504",
+          "93.22356428900504"
+        ],
+        "numeric_stats": {
+          "mean": 92.69627952842735,
+          "std": 10.728571691267861,
+          "min": 44.40300681778451,
+          "max": 142.73484557221582,
+          "q25": 93.22356428900504,
+          "q50": 93.22356428900504,
+          "q75": 93.22356428900504
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Demographics",
+        "is_constant": false
+      },
+      "实验室检验_事件数": {
+        "name": "实验室检验_事件数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "5",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "numeric_stats": {
+          "mean": 47.98717948717949,
+          "std": 32.39949237607137,
+          "min": 0.0,
+          "max": 74.0,
+          "q25": 15.25,
+          "q50": 74.0,
+          "q75": 74.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "实验室检验_摘要": {
+        "name": "实验室检验_摘要",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "Alanine Aminotransferase (ALT)=294.0 IU/L[abnormal]; Alkaline Phosphatase=331.0 IU/L[abnormal]; Anion Gap=15.0 mEq/L; Asparate Aminotransferase (AST)=268.0 IU/L[abnormal]; Bicarbonate=21.0 mEq/L[abnormal]; Bilirubin, Total=2.0 mg/dL[abnormal]; Calcium, Total=8.7 mg/dL; Creatinine=1.4 mg/dL[abnormal]; Glucose=162.0 mg/dL[abnormal]; Magnesium=1.8 mg/dL; Phosphate=3.4 mg/dL; Potassium=4.4 mEq/L; Hematocrit=39.4 %[abnormal]; Hemoglobin=12.6 g/dL[abnormal]; Platelet Count=66.0 K/uL[abnormal]; Hematocrit=34.5 %[abnormal]; Hemoglobin=11.3 g/dL[abnormal]; Platelet Count=33.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=994.0 IU/L[abnormal]; Alkaline Phosphatase=351.0 IU/L[abnormal]; Anion Gap=14.0 mEq/L; Asparate Aminotransferase (AST)=818.0 IU/L[abnormal]; Bicarbonate=23.0 mEq/L; Bilirubin, Direct=0.7 mg/dL[abnormal]; Bilirubin, Indirect=0.9 mg/dL; Bilirubin, Total=1.6 mg/dL[abnormal]; Calcium, Total=8.9 mg/dL; Creatinine=1.2 mg/dL; Glucose=129.0 mg/dL[abnormal]; Magnesium=1.9 mg/dL; Phosphate=2.5 mg/dL[abnormal]; Potassium=3.9 mEq/L; Hematocrit=34.0 %[abnormal]; Hemoglobin=11.1 g/dL[abnormal]; Platelet Count=31.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=956.0 IU/L[abnormal]; Alkaline Phosphatase=373.0 IU/L[abnormal]; Asparate Aminotransferase (AST)=783.0 IU/L[abnormal]; Bilirubin, Total=1.6 mg/dL[abnormal]; Hematocrit=35.4 %[abnormal]; Hemoglobin=11.5 g/dL[abnormal]; Platelet Count=38.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=938.0 IU/L[abnormal]; Alkaline Phosphatase=395.0 IU/L[abnormal]; Asparate Aminotransferase (AST)=684.0 IU/L[abnormal]; Bilirubin, Total=1.6 mg/dL[abnormal]; Hematocrit=33.8 %[abnormal]; Hemoglobin=11.0 g/dL[abnormal]; Platelet Count=29.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=824.0 IU/L[abnormal]",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Alanine Aminotransferase (ALT)": {
+        "name": "Lab_Alanine Aminotransferase (ALT)",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "824.0 IU/L",
+          "21.0 IU/L",
+          "21.0 IU/L",
+          "21.0 IU/L",
+          "21.0 IU/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "Lab_Aspartate Aminotransferase (AST)": {
+        "name": "Lab_Aspartate Aminotransferase (AST)",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": true
+      },
+      "Lab_Total Bilirubin": {
+        "name": "Lab_Total Bilirubin",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": true
+      },
+      "Lab_Direct Bilirubin": {
+        "name": "Lab_Direct Bilirubin",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": true
+      },
+      "Lab_Alkaline Phosphatase": {
+        "name": "Lab_Alkaline Phosphatase",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "360.0 IU/L",
+          "159.0 IU/L",
+          "159.0 IU/L",
+          "159.0 IU/L",
+          "159.0 IU/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Albumin": {
+        "name": "Lab_Albumin",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": true
+      },
+      "Lab_INR(PT)": {
+        "name": "Lab_INR(PT)",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": true
+      },
+      "Lab_Creatinine": {
+        "name": "Lab_Creatinine",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.14102564102564102,
+        "examples": [
+          "1.0 mg/dL",
+          "0.9 mg/dL",
+          "0.9 mg/dL",
+          "0.9 mg/dL",
+          "0.9 mg/dL"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Platelet Count": {
+        "name": "Lab_Platelet Count",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "29.0 K/uL",
+          "129.0 K/uL",
+          "129.0 K/uL",
+          "129.0 K/uL",
+          "129.0 K/uL"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Hematocrit": {
+        "name": "Lab_Hematocrit",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "33.8 %",
+          "37.0 %",
+          "37.0 %",
+          "37.0 %",
+          "37.0 %"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Hemoglobin": {
+        "name": "Lab_Hemoglobin",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.1282051282051282,
+        "examples": [
+          "11.0 g/dL",
+          "12.3 g/dL",
+          "12.3 g/dL",
+          "12.3 g/dL",
+          "12.3 g/dL"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Sodium": {
+        "name": "Lab_Sodium",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": true
+      },
+      "Lab_Potassium": {
+        "name": "Lab_Potassium",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "3.8 mEq/L",
+          "4.2 mEq/L",
+          "4.2 mEq/L",
+          "4.2 mEq/L",
+          "4.2 mEq/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "note_index": {
+        "name": "note_index",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.5897435897435898,
+        "examples": [
+          "0.0",
+          "0.0",
+          "1.0",
+          "2.0",
+          "3.0"
+        ],
+        "numeric_stats": {
+          "mean": 15.0,
+          "std": 14.545904349105742,
+          "min": 0.0,
+          "max": 45.0,
+          "q25": 2.0,
+          "q50": 9.0,
+          "q75": 27.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "ClinicalNotes",
+        "is_constant": false
+      },
+      "note_type": {
+        "name": "note_type",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "discharge",
+          "radiology",
+          "radiology",
+          "radiology",
+          "discharge"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "ClinicalNotes",
+        "is_constant": false
+      },
+      "note_charttime": {
+        "name": "note_charttime",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.9358974358974359,
+        "examples": [
+          "2129-07-05T00:00:00",
+          "2149-02-11T10:32:00",
+          "2149-02-11T12:39:00",
+          "2149-02-11T12:51:00",
+          "2149-02-14T00:00:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "note_text": {
+        "name": "note_text",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.9230769230769231,
+        "examples": [
+          "  Name:  ___                  Unit No:   ___   Admission Date:  ___              Discharge Date:   ___   Date of Birth:  ___             Sex:   M   Service: MEDICINE   Allergies:  No Known Allergies / Adverse Drug Reactions   Attending: ___.   Chief Complaint: post TIPS monitoring   Major Surgical or Invasive Procedure: TIPS ___    History of Present Illness: Mr. ___ is a ___ male with congenital hepatic fibrosis complicated by portal hypertension and variceal  bleeding who presents to the medic",
+          "EXAMINATION:  LIVER OR GALLBLADDER US (SINGLE ORGAN)  INDICATION:  ___ with h/o cirrhosis c/o 3 days worsening ruq abdominal pain// ?portal venous thrombosis  TECHNIQUE:  Grey scale and color Doppler ultrasound images of the abdomen were obtained.  COMPARISON:  ___ ultrasound  FINDINGS:   LIVER: The liver is coarsened and nodular in echotexture. The contour of the liver is nodular, consistent with cirrhosis.  There is a 1.6 cm echogenic focus within the mid right hepatic lobe, peripherally, for ",
+          "EXAMINATION:  CHEST (PA AND LAT)  INDICATION:  ___ with h/o cirrhosis c/o 3 days worsening ruq abdominal pain// ?pneumonia  COMPARISON:  ___  FINDINGS:   PA and lateral views of the chest provided.  There is blunting of the right CP angle indicative of a small effusion.  Otherwise the lungs are clear.  Cardiomediastinal silhouette appears normal.  Bony structures are intact.  No free air below the right hemidiaphragm.  IMPRESSION:   Tiny right pleural effusion, otherwise unremarkable exam. ",
+          "EXAMINATION:  CT abdomen and pelvis  INDICATION:  ___ with h/o cirrhosis and multiple abdominal surgeries c/o 3 days worsening ruq abdominal pain and vomiting  TECHNIQUE:  Single phase split bolus contrast: MDCT axial images were acquired through the abdomen and pelvis following intravenous contrast administration with split bolus technique. Oral contrast was administered.  Coronal and sagittal reformations were performed and reviewed on PACS.  DOSE:  Total DLP (Body) = 665 mGy-cm.  COMPARISON: ",
+          "  Name:  ___                     Unit No:   ___   Admission Date:  ___              Discharge Date:   ___   Date of Birth:  ___             Sex:   M   Service: MEDICINE   Allergies:  Tylenol / Neurontin   Attending: ___   Chief Complaint: RUQ abdominal pain, vomiting, diarrhea   Major Surgical or Invasive Procedure: -diagnostic para ___    History of Present Illness: Mr ___ is a ___ year old man with cirrhosis (EtOH/HCV  untreated, genotype 3)Child Class C, complicated by esophageal  varices, as"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "ClinicalNotes",
+        "is_constant": false
+      },
+      "抽取_Disease": {
+        "name": "抽取_Disease",
+        "dtype_guess": "object",
+        "missing_rate": 0.3076923076923077,
+        "unique_ratio": 0.6025641025641025,
+        "examples": [
+          "congenital hepatic fibrosis; portal hypertension; variceal bleeding; portal vein thrombosis; hyperlipidemia; thrombocytopenia",
+          "cirrhosis; portal venous thrombosis; partially occlusive thrombus in main portal vein",
+          "cirrhosis; pneumonia; small pleural effusion; tiny right pleural effusion",
+          "cirrhosis; portal hypertension; partially occlusive thrombus in main portal vein; gallstone; ileus; portal colopathy; atherosclerotic disease",
+          "cirrhosis; esophageal varices; ascites; hepatic encephalopathy; viral gastroenteritis; portal vein thrombosis; hyponatremia; hyponatremia"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "抽取_Drug": {
+        "name": "抽取_Drug",
+        "dtype_guess": "object",
+        "missing_rate": 0.8205128205128205,
+        "unique_ratio": 0.1282051282051282,
+        "examples": [
+          "tPA; Pravastatin; Nadolol; Lactulose",
+          "Lactulose; Furosemide; Spironolactone; Famotidine; Oxycodone; Multivitamins; Potassium Chloride; Sulfameth/Trimethoprim SS; Calcium carbonate-vitamin D3; Polyethylene Glycol; Heparin; Morphine; Ondansetron",
+          "fentanyl; midazolam; lidocaine",
+          "thrombin",
+          "1% lidocaine"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Medication",
+        "is_constant": false
+      },
+      "抽取_Symptom": {
+        "name": "抽取_Symptom",
+        "dtype_guess": "object",
+        "missing_rate": 0.5512820512820513,
+        "unique_ratio": 0.34615384615384615,
+        "examples": [
+          "variceal bleeding",
+          "right upper quadrant abdominal pain",
+          "right upper quadrant abdominal pain",
+          "right upper quadrant abdominal pain; vomiting",
+          "right upper quadrant abdominal pain; vomiting; diarrhea"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "抽取_Test": {
+        "name": "抽取_Test",
+        "dtype_guess": "object",
+        "missing_rate": 0.20512820512820512,
+        "unique_ratio": 0.3717948717948718,
+        "examples": [
+          "Liver or Gallbladder ultrasound",
+          "Chest X-ray (PA and lateral)",
+          "CT abdomen and pelvis",
+          "follow-up MR",
+          "Duplex Doppler ultrasound abdomen and pelvis"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "抽取_Treatment": {
+        "name": "抽取_Treatment",
+        "dtype_guess": "object",
+        "missing_rate": 0.4358974358974359,
+        "unique_ratio": 0.44871794871794873,
+        "examples": [
+          "TIPS procedure; endoscopic banding",
+          "TIPS",
+          "paracentesis",
+          "Dobhoff feeding tube placement",
+          "therapeutic paracentesis"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "抽取_Anatomy": {
+        "name": "抽取_Anatomy",
+        "dtype_guess": "object",
+        "missing_rate": 0.8205128205128205,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "esophageal varices; gastric varices",
+          "right hepatic lobe; main portal vein; common hepatic duct; pancreas; right kidney; aorta; inferior vena cava",
+          "right hemidiaphragm",
+          "heart; GE junction; main portal vein; pancreas; spleen; splenic vein; adrenal glands; kidneys; stomach and duodenum",
+          "GE junction"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "抽取_LabValue": {
+        "name": "抽取_LabValue",
+        "dtype_guess": "object",
+        "missing_rate": 0.717948717948718,
+        "unique_ratio": 0.24358974358974358,
+        "examples": [
+          "WBC:4.2 10^9/L; RBC:3.93 10^12/L; Hgb:11.0 g/dL; Hct:33.8 %; RDW-SD:47.3 fL; Plt Ct:29 10^9/L; Glucose:109 mg/dL; ALT:824 U/L; AST:556 U/L; LDH:289 U/L; AlkPhos:360 U/L; Total Bilirubin:1.8 mg/dL; Urea Nitrogen:15 mg/dL; Creatinine:1.0 mg/dL; Sodium:141 mmol/L; Potassium:3.8 mmol/L; Chloride:104 mmol/L; Bicarbonate:23 mmol/L; Anion Gap:14 mmol/L; MELD-NA:16; MELD-NA:11; Hemoglobin:11; Creatinine:1.0",
+          "common hepatic duct diameter:5 mm; spleen size:13.7 cm; previous spleen size:12 cm",
+          "largest renal cyst size:3.1 cm",
+          "spleen size:13.7 cm; previous spleen size:12 cm; WBC:5.4 10^9/L; Hgb:14.0 g/dL; RBC:3.97 10^12/L; MCV:106 fL; MCH:35.3 pg; MCHC:33.2 g/dL; RDW-SD:56.4 fL; Neutrophils:65.3 %; Monocytes:10.4 %; Basophils:1.7 %; Absolute Neutrophils:3.51 10^9/L; Absolute Lymphocytes:1.08 10^9/L; Absolute Monocytes:0.56 10^9/L; Absolute Eosinophils:0.1 10^9/L; Absolute Basophils:0.09 10^9/L; PTT:38.7 seconds; Glucose:144 mg/dL; Sodium:130 mmol/L; Potassium:4.8 mmol/L; Chloride:101 mmol/L; Bicarbonate:15 mmol/L; Anion Gap:19 mmol/L; ALT:32 U/L; AST:127 U/L; AlkPhos:145 U/L; Total Bilirubin:4.7 mg/dL; Albumin:2.8 g/dL; Lactate:2.6 mmol/L; Calcium:7.7 mg/dL; Phosphorus:2.9 mg/dL; Magnesium:1.4 mg/dL; WBC:5.1 10^9/L; RBC:3.46 10^12/L; Hgb:12.3 g/dL; Hct:37.0 %; MCV:107 fL; MCH:35.5 pg; RDW-SD:55.5 fL; PTT:36.8 seconds; Glucose:93 mg/dL; Sodium:133 mmol/L; Potassium:4.2 mmol/L; Chloride:99 mmol/L; Bicarbonate:26 mmol/L; Anion Gap:12 mmol/L; ALT:21 U/L; AST:63 U/L; AlkPhos:159 U/L; Total Bilirubin:2.3 mg/dL; Albumin:2.4 g/dL; Calcium:8.0 mg/dL; Phosphorus:3.6 mg/dL; Magnesium:1.6 mg/dL",
+          "main portal vein velocity:13.9 cm/sec; common bile duct diameter:4 mm; spleen size:20.7 cm; right kidney size:11.4 cm; left kidney size:11.1 cm"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "抽取_Finding": {
+        "name": "抽取_Finding",
+        "dtype_guess": "object",
+        "missing_rate": 0.1794871794871795,
+        "unique_ratio": 0.8076923076923077,
+        "examples": [
+          "liver coarsened and nodular echotexture; nodular liver contour; 1.6 cm echogenic focus in mid right hepatic lobe; normal hepatopetal flow in main portal vein; large volume ascites; no intrahepatic biliary dilation; no gallstones; limited visualization of pancreas due to bowel gas; splenomegaly; no hydronephrosis in right kidney; aorta and IVC within normal limits",
+          "blunting of the right costophrenic angle; lungs clear; normal cardiomediastinal silhouette; intact bony structures; no free air below right hemidiaphragm",
+          "trace right pleural effusion; atelectasis in right lower lobe; multiple periesophageal varices near GE junction; nodular and heterogeneous liver enhancement; extensive portosystemic varices; partially distended gallbladder containing a stone; no biliary ductal dilation; normal pancreas; normal spleen size without focal abnormality; splenule; patent splenic vein; normal adrenal glands; renal cortical hypodensities suggestive of simple cysts; moderate volume ascites partially loculated in right upper quadrant; mildly distended small bowel loops without obstruction; normal appendix; minimally thickened colon in right upper quadrant; partially distended urinary bladder; normal prostate size; no lymphadenopathy; aortoiliac calcification; degenerative disc disease at L5-S1",
+          "partially occlusive thrombus within the main portal vein; large volume ascites; worsening splenomegaly; 1.6 cm focus within the right hepatic lobe",
+          "liver coarsened and nodular echotexture; no focal liver mass; main portal vein patent with hepatopetal flow; large ascites; right and left portal veins patent with antegrade flow; main hepatic artery patent with appropriate waveform; right, middle and left hepatic veins patent with appropriate waveforms; splenic vein patent with antegrade flow; no intrahepatic biliary dilation; contracted gallbladder with cholelithiasis; normal pancreas; normal spleen echogenicity; normal cortical echogenicity and corticomedullary differentiation in kidneys; no masses, stones, or hydronephrosis in kidneys; aorta and IVC within normal limits"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "抽取_Other": {
+        "name": "抽取_Other",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": true
+      },
+      "temporal_info": {
+        "name": "temporal_info",
+        "dtype_guess": "object",
+        "missing_rate": 0.9615384615384616,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "Admission:Admission Date:  ___; Discharge:Discharge Date:   ___",
+          "Admission:Admission Date:  ___; Discharge:Discharge Date:   ___",
+          "procedure duration:total intra-service time of 13 min"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "quantity_info": {
+        "name": "quantity_info",
+        "dtype_guess": "object",
+        "missing_rate": 0.8846153846153846,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "Lactulose 30 mL DAILY; Nadolol 40 mg DAILY; Pravastatin 40 mg QPM",
+          "Lactulose 30 mL TID; Furosemide 20 mg DAILY; Spironolactone 50 mg DAILY; Famotidine 20 mg Q12H; Oxycodone 10 mg Q6H; Multivitamins 1 TAB DAILY; Potassium Chloride 10 mEq DAILY; Sulfameth/Trimethoprim SS 1 TAB DAILY; Calcium carbonate-vitamin D3 600 mg DAILY; Polyethylene Glycol 17 g DAILY; Heparin drip; Morphine 4 mg IV x2; Ondansetron 4 mg IV",
+          "fentanyl 50 mcg; midazolam 2 mg",
+          "thrombin 1050 units 10.5 ml",
+          "1% lidocaine"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "impression": {
+        "name": "impression",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.9102564102564102,
+        "examples": [
+          "Post TIPS monitoring for congenital hepatic fibrosis with portal hypertension and variceal bleeding. No hepatic encephalopathy noted. Mild post-op complication resolved with albumin. Liver function tests elevated but improving.",
+          "Cirrhosis with new partially occlusive thrombus within the main portal vein, large volume ascites, worsening splenomegaly, and a new 1.6 cm echogenic focus in the right hepatic lobe requiring follow-up MR.",
+          "Tiny right pleural effusion, otherwise unremarkable exam.",
+          "Cirrhosis with portal hypertension, moderate ascites partially loculated in right upper quadrant, extensive portosystemic varices, new partially occlusive thrombus in main portal vein, gallbladder stone, small bowel distention likely ileus, mild proximal colon thickening suggesting portal colopathy, trace right pleural effusion with chronic atelectasis in right lower lung, and extensive atherosclerotic disease of the aorta.",
+          "Patient with Child Class C cirrhosis due to alcohol and untreated hepatitis C (genotype 3), complicated by esophageal varices, ascites, and hepatic encephalopathy, presenting with acute on chronic right upper quadrant abdominal pain, vomiting, and diarrhea likely due to viral gastroenteritis. Imaging shows new partially occlusive portal vein thrombosis, large volume ascites, worsening splenomegaly, and a new 1.6 cm hepatic lesion requiring follow-up MRI. Hospital course complicated by hyponatremia and non-occlusive portal vein thrombosis; anticoagulation was deferred due to compliance concerns. Patient treated with IV fluids, pain control, antiemetics, and heparin drip. Discharged home with stable condition and instructions for follow-up."
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "indication": {
+        "name": "indication",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.8846153846153846,
+        "examples": [
+          "Post TIPS monitoring for congenital hepatic fibrosis with portal hypertension and variceal bleeding.",
+          "Right upper quadrant abdominal pain with history of cirrhosis, suspected portal venous thrombosis.",
+          "Right upper quadrant abdominal pain with history of cirrhosis, suspected pneumonia.",
+          "Right upper quadrant abdominal pain and vomiting with history of cirrhosis and multiple abdominal surgeries.",
+          "Right upper quadrant abdominal pain, vomiting, and diarrhea in a patient with cirrhosis and history of multiple abdominal surgeries."
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "relations": {
+        "name": "relations",
+        "dtype_guess": "object",
+        "missing_rate": 0.717948717948718,
+        "unique_ratio": 0.2692307692307692,
+        "examples": [
+          "TIPS procedure --TreatmentFor--> portal hypertension; TIPS procedure --TreatmentFor--> variceal bleeding; endoscopic banding --TreatmentFor--> esophageal varices; endoscopic banding --TreatmentFor--> gastric varices; tPA --TreatmentFor--> portal vein thrombosis",
+          "1.6 cm echogenic focus in mid right hepatic lobe --LocatedIn--> right hepatic lobe; partially occlusive thrombus in main portal vein --LocatedIn--> main portal vein",
+          "blunting of the right costophrenic angle --LocatedIn--> right costophrenic angle; no free air below right hemidiaphragm --LocatedIn--> right hemidiaphragm",
+          "multiple periesophageal varices --LocatedIn--> GE junction; partially occlusive thrombus in main portal vein --LocatedIn--> main portal vein; partially distended gallbladder containing a stone --LocatedIn--> gallbladder; renal cortical hypodensities suggestive of simple cysts --LocatedIn--> kidneys; moderate volume ascites partially loculated in right upper quadrant --LocatedIn--> right upper quadrant; mildly distended small bowel loops --LocatedIn--> small bowel; minimally thickened colon --LocatedIn--> proximal colon",
+          "heparin drip --TreatmentFor--> partially occlusive thrombus within the main portal vein; morphine 4mg IV --TreatmentFor--> right upper quadrant abdominal pain; ondansetron 4mg IV --TreatmentFor--> vomiting; Lactulose --TreatmentFor--> hepatic encephalopathy; Furosemide --TreatmentFor--> ascites; Spironolactone --TreatmentFor--> ascites; Sulfameth/Trimethoprim SS --TreatmentFor--> SBP prophylaxis; Oxycodone --TreatmentFor--> chronic abdominal pain"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "extraction_error": {
+        "name": "extraction_error",
+        "dtype_guess": "float64",
+        "missing_rate": 1.0,
+        "unique_ratio": 0.0,
+        "examples": [],
+        "numeric_stats": {
+          "mean": NaN,
+          "std": NaN,
+          "min": NaN,
+          "max": NaN,
+          "q25": NaN,
+          "q50": NaN,
+          "q75": NaN
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": true
+      }
+    }
+  },
+  "llm_input_profile": {
+    "dataset_info": {
+      "total_rows": 78,
+      "sampled_rows": 78,
+      "total_columns": 71,
+      "profile_generated_at": "2026-03-24T18:06:10.575979",
+      "total_columns_before_prefilter": 71,
+      "columns_after_prefilter": 60,
+      "columns_passed_to_selector": 60,
+      "dropped_constant_or_all_missing_count": 11,
+      "dropped_phi_in_strict_count": 0,
+      "task_keywords_used": [
+        "factors",
+        "associated",
+        "mortality",
+        "risk",
+        "length",
+        "stay",
+        "among",
+        "hospitalized",
+        "cirrhosis",
+        "or",
+        "hepatic",
+        "failure"
+      ],
+      "selector_input_mode": "full_schema"
+    },
+    "columns": {
+      "record_index": {
+        "name": "record_index",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "1",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "numeric_stats": {
+          "mean": 5.512820512820513,
+          "std": 3.963284711905733,
+          "min": 1.0,
+          "max": 13.0,
+          "q25": 3.0,
+          "q50": 3.0,
+          "q75": 9.75
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "入院时间": {
+        "name": "入院时间",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "2129-07-03 03:31:00",
+          "2149-02-11 21:49:00",
+          "2149-02-11 21:49:00",
+          "2149-02-11 21:49:00",
+          "2149-02-11 21:49:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "出院时间": {
+        "name": "出院时间",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "2129-07-05 14:48:00",
+          "2149-02-14 16:45:00",
+          "2149-02-14 16:45:00",
+          "2149-02-14 16:45:00",
+          "2149-02-14 16:45:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "入院科室": {
+        "name": "入院科室",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "PHYSICIAN REFERRAL",
+          "EMERGENCY ROOM",
+          "EMERGENCY ROOM",
+          "EMERGENCY ROOM",
+          "EMERGENCY ROOM"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "出院去向": {
+        "name": "出院去向",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.05128205128205128,
+        "examples": [
+          "HOME",
+          "HOME",
+          "HOME",
+          "HOME",
+          "HOME"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "入院类型": {
+        "name": "入院类型",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "DIRECT EMER.",
+          "OBSERVATION ADMIT",
+          "OBSERVATION ADMIT",
+          "OBSERVATION ADMIT",
+          "OBSERVATION ADMIT"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "死亡时间": {
+        "name": "死亡时间",
+        "dtype_guess": "object",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00",
+          "2146-07-12 20:50:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "住院天数": {
+        "name": "住院天数",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "2.47",
+          "2.79",
+          "2.79",
+          "2.79",
+          "2.79"
+        ],
+        "numeric_stats": {
+          "mean": 22.200641025641026,
+          "std": 13.208722063272758,
+          "min": 0.32,
+          "max": 61.8,
+          "q25": 12.5975,
+          "q50": 31.31,
+          "q75": 31.31
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "年龄_入院时": {
+        "name": "年龄_入院时",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "54",
+          "60",
+          "60",
+          "60",
+          "60"
+        ],
+        "numeric_stats": {
+          "mean": 67.32051282051282,
+          "std": 8.232803549159561,
+          "min": 42.0,
+          "max": 91.0,
+          "q25": 65.25,
+          "q50": 69.0,
+          "q75": 69.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Demographics",
+        "is_constant": false
+      },
+      "性别": {
+        "name": "性别",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "M",
+          "M",
+          "M",
+          "M",
+          "M"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Demographics",
+        "is_constant": false
+      },
+      "主诊断_icd_code": {
+        "name": "主诊断_icd_code",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.08974358974358974,
+        "examples": [
+          "K7460",
+          "K7469",
+          "K7469",
+          "K7469",
+          "K7469"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "主诊断_icd_title": {
+        "name": "主诊断_icd_title",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.08974358974358974,
+        "examples": [
+          "Unspecified cirrhosis of liver",
+          "Other cirrhosis of liver",
+          "Other cirrhosis of liver",
+          "Other cirrhosis of liver",
+          "Other cirrhosis of liver"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "诊断总数": {
+        "name": "诊断总数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "1",
+          "2",
+          "2",
+          "2",
+          "2"
+        ],
+        "numeric_stats": {
+          "mean": 2.871794871794872,
+          "std": 1.3897488735026666,
+          "min": 1.0,
+          "max": 4.0,
+          "q25": 1.0,
+          "q50": 4.0,
+          "q75": 4.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "所有诊断_icd_codes": {
+        "name": "所有诊断_icd_codes",
+        "dtype_guess": "object",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "K7460",
+          "K7469; K7290",
+          "K7469; K7290",
+          "K7469; K7290",
+          "K7469; K7290"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "手术操作总数": {
+        "name": "手术操作总数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "1",
+          "0",
+          "0",
+          "0",
+          "0"
+        ],
+        "numeric_stats": {
+          "mean": 1.205128205128205,
+          "std": 0.9717967608450564,
+          "min": 0.0,
+          "max": 2.0,
+          "q25": 0.0,
+          "q50": 2.0,
+          "q75": 2.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "所有手术操作_codes": {
+        "name": "所有手术操作_codes",
+        "dtype_guess": "object",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "3E03317",
+          "3E0G76Z; 3E0436Z",
+          "3E0G76Z; 3E0436Z",
+          "3E0G76Z; 3E0436Z",
+          "3E0G76Z; 3E0436Z"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "所有手术操作_titles": {
+        "name": "所有手术操作_titles",
+        "dtype_guess": "object",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "Introduction of Other Thrombolytic into Peripheral Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach",
+          "Introduction of Nutritional Substance into Upper GI, Via Natural or Artificial Opening; Introduction of Nutritional Substance into Central Vein, Percutaneous Approach"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "用药总数": {
+        "name": "用药总数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.10256410256410256,
+        "examples": [
+          "5",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "numeric_stats": {
+          "mean": 5.282051282051282,
+          "std": 3.6534894755542062,
+          "min": 0.0,
+          "max": 26.0,
+          "q25": 2.0,
+          "q50": 7.0,
+          "q75": 7.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Medication",
+        "is_constant": false
+      },
+      "所有用药": {
+        "name": "所有用药",
+        "dtype_guess": "object",
+        "missing_rate": 0.1282051282051282,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "Lactulose; Lactulose; Lactulose; Lactulose; Nadolol",
+          "Spironolactone; Furosemide; Lactulose",
+          "Spironolactone; Furosemide; Lactulose",
+          "Spironolactone; Furosemide; Lactulose",
+          "Spironolactone; Furosemide; Lactulose"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Medication",
+        "is_constant": false
+      },
+      "体温_C": {
+        "name": "体温_C",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "82.32108108108109",
+          "82.32108108108109",
+          "82.32108108108109",
+          "82.32108108108109",
+          "82.32108108108109"
+        ],
+        "numeric_stats": {
+          "mean": 85.80714963731586,
+          "std": 6.615147679745364,
+          "min": 82.32108108108109,
+          "max": 98.92470588235294,
+          "q25": 82.32108108108109,
+          "q50": 82.32108108108109,
+          "q75": 82.32108108108109
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "脉搏_次每分": {
+        "name": "脉搏_次每分",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "83.50671785028791",
+          "83.50671785028791",
+          "83.50671785028791",
+          "83.50671785028791",
+          "83.50671785028791"
+        ],
+        "numeric_stats": {
+          "mean": 87.0937857517521,
+          "std": 9.069715748267097,
+          "min": 71.88785046728972,
+          "max": 106.57894736842104,
+          "q25": 83.50671785028791,
+          "q50": 83.50671785028791,
+          "q75": 83.50671785028791
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "呼吸_次每分": {
+        "name": "呼吸_次每分",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "21.536538461538463",
+          "21.536538461538463",
+          "21.536538461538463",
+          "21.536538461538463",
+          "21.536538461538463"
+        ],
+        "numeric_stats": {
+          "mean": 20.992943120513953,
+          "std": 1.612253597836651,
+          "min": 13.401869158878505,
+          "max": 25.333333333333332,
+          "q25": 21.536538461538463,
+          "q50": 21.536538461538463,
+          "q75": 21.536538461538463
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "收缩压": {
+        "name": "收缩压",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "117.04889975550122",
+          "117.04889975550122",
+          "117.04889975550122",
+          "117.04889975550122",
+          "117.04889975550122"
+        ],
+        "numeric_stats": {
+          "mean": 118.05549492852391,
+          "std": 5.4730805475448365,
+          "min": 117.04889975550122,
+          "max": 153.23333333333332,
+          "q25": 117.04889975550122,
+          "q50": 117.04889975550122,
+          "q75": 117.04889975550122
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "舒张压": {
+        "name": "舒张压",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "56.728606356968214",
+          "56.728606356968214",
+          "56.728606356968214",
+          "56.728606356968214",
+          "56.728606356968214"
+        ],
+        "numeric_stats": {
+          "mean": 56.99879852504473,
+          "std": 1.349454399435143,
+          "min": 56.728606356968214,
+          "max": 64.79310344827586,
+          "q25": 56.728606356968214,
+          "q50": 56.728606356968214,
+          "q75": 56.728606356968214
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "总胆红素": {
+        "name": "总胆红素",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "22.053846153846155",
+          "22.053846153846155",
+          "22.053846153846155",
+          "22.053846153846155",
+          "22.053846153846155"
+        ],
+        "numeric_stats": {
+          "mean": 22.108150183150187,
+          "std": 0.48523461456935335,
+          "min": 21.38095238095238,
+          "max": 25.333333333333332,
+          "q25": 22.053846153846155,
+          "q50": 22.053846153846155,
+          "q75": 22.053846153846155
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "直接胆红素": {
+        "name": "直接胆红素",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "65.6829268292683",
+          "65.6829268292683",
+          "65.6829268292683",
+          "65.6829268292683",
+          "65.6829268292683"
+        ],
+        "numeric_stats": {
+          "mean": 64.49201559085809,
+          "std": 11.772801011892113,
+          "min": 12.785714285714286,
+          "max": 76.0,
+          "q25": 65.6829268292683,
+          "q50": 65.6829268292683,
+          "q75": 65.6829268292683
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "ALT": {
+        "name": "ALT",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "5.819230769230769",
+          "5.819230769230769",
+          "5.819230769230769",
+          "5.819230769230769",
+          "5.819230769230769"
+        ],
+        "numeric_stats": {
+          "mean": 4.801434159061281,
+          "std": 1.9613116707590572,
+          "min": 0.8500000000000001,
+          "max": 5.819230769230769,
+          "q25": 5.819230769230769,
+          "q50": 5.819230769230769,
+          "q75": 5.819230769230769
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "AST": {
+        "name": "AST",
+        "dtype_guess": "float64",
+        "missing_rate": 0.2564102564102564,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "1.1134375",
+          "1.1134375",
+          "1.1134375",
+          "1.1134375",
+          "1.1134375"
+        ],
+        "numeric_stats": {
+          "mean": 8621.783301005744,
+          "std": 65653.08634098903,
+          "min": 1.06,
+          "max": 500000.12,
+          "q25": 1.1134375,
+          "q50": 1.1134375,
+          "q75": 1.1134375
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "碱性磷酸酶": {
+        "name": "碱性磷酸酶",
+        "dtype_guess": "float64",
+        "missing_rate": 0.358974358974359,
+        "unique_ratio": 0.0641025641025641,
+        "examples": [
+          "15.257692307692306",
+          "15.257692307692306",
+          "15.257692307692306",
+          "15.257692307692306",
+          "15.257692307692306"
+        ],
+        "numeric_stats": {
+          "mean": 14.587776923076921,
+          "std": 2.91757859035158,
+          "min": 0.7,
+          "max": 15.257692307692306,
+          "q25": 15.257692307692306,
+          "q50": 15.257692307692306,
+          "q75": 15.257692307692306
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "GGT": {
+        "name": "GGT",
+        "dtype_guess": "float64",
+        "missing_rate": 0.3974358974358974,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "1.0",
+          "1.0",
+          "1.0",
+          "1.0",
+          "1.0"
+        ],
+        "numeric_stats": {
+          "mean": 1.0851063829787233,
+          "std": 0.5834599659915782,
+          "min": 1.0,
+          "max": 5.0,
+          "q25": 1.0,
+          "q50": 1.0,
+          "q75": 1.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "INR": {
+        "name": "INR",
+        "dtype_guess": "float64",
+        "missing_rate": 0.38461538461538464,
+        "unique_ratio": 0.038461538461538464,
+        "examples": [
+          "3.65",
+          "3.65",
+          "3.65",
+          "3.65",
+          "3.65"
+        ],
+        "numeric_stats": {
+          "mean": 3.634895833333333,
+          "std": 0.07679407102095599,
+          "min": 3.175,
+          "max": 3.65,
+          "q25": 3.65,
+          "q50": 3.65,
+          "q75": 3.65
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "身高_cm": {
+        "name": "身高_cm",
+        "dtype_guess": "float64",
+        "missing_rate": 0.3717948717948718,
+        "unique_ratio": 0.05128205128205128,
+        "examples": [
+          "129.0",
+          "129.0",
+          "129.0",
+          "129.0",
+          "129.0"
+        ],
+        "numeric_stats": {
+          "mean": 128.76530612244898,
+          "std": 1.7532768155190825,
+          "min": 117.0,
+          "max": 131.0,
+          "q25": 129.0,
+          "q50": 129.0,
+          "q75": 129.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "体重_kg": {
+        "name": "体重_kg",
+        "dtype_guess": "float64",
+        "missing_rate": 0.24358974358974358,
+        "unique_ratio": 0.07692307692307693,
+        "examples": [
+          "155.13333333333333",
+          "155.13333333333333",
+          "155.13333333333333",
+          "155.13333333333333",
+          "155.13333333333333"
+        ],
+        "numeric_stats": {
+          "mean": 142.7847457627119,
+          "std": 31.22868273503197,
+          "min": 76.2,
+          "max": 232.03333333333333,
+          "q25": 155.13333333333333,
+          "q50": 155.13333333333333,
+          "q75": 155.13333333333333
+        },
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "BMI": {
+        "name": "BMI",
+        "dtype_guess": "float64",
+        "missing_rate": 0.3717948717948718,
+        "unique_ratio": 0.05128205128205128,
+        "examples": [
+          "93.22356428900504",
+          "93.22356428900504",
+          "93.22356428900504",
+          "93.22356428900504",
+          "93.22356428900504"
+        ],
+        "numeric_stats": {
+          "mean": 92.69627952842735,
+          "std": 10.728571691267861,
+          "min": 44.40300681778451,
+          "max": 142.73484557221582,
+          "q25": 93.22356428900504,
+          "q50": 93.22356428900504,
+          "q75": 93.22356428900504
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Demographics",
+        "is_constant": false
+      },
+      "实验室检验_事件数": {
+        "name": "实验室检验_事件数",
+        "dtype_guess": "int64",
+        "missing_rate": 0.0,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "5",
+          "3",
+          "3",
+          "3",
+          "3"
+        ],
+        "numeric_stats": {
+          "mean": 47.98717948717949,
+          "std": 32.39949237607137,
+          "min": 0.0,
+          "max": 74.0,
+          "q25": 15.25,
+          "q50": 74.0,
+          "q75": 74.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "实验室检验_摘要": {
+        "name": "实验室检验_摘要",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "Alanine Aminotransferase (ALT)=294.0 IU/L[abnormal]; Alkaline Phosphatase=331.0 IU/L[abnormal]; Anion Gap=15.0 mEq/L; Asparate Aminotransferase (AST)=268.0 IU/L[abnormal]; Bicarbonate=21.0 mEq/L[abnormal]; Bilirubin, Total=2.0 mg/dL[abnormal]; Calcium, Total=8.7 mg/dL; Creatinine=1.4 mg/dL[abnormal]; Glucose=162.0 mg/dL[abnormal]; Magnesium=1.8 mg/dL; Phosphate=3.4 mg/dL; Potassium=4.4 mEq/L; Hematocrit=39.4 %[abnormal]; Hemoglobin=12.6 g/dL[abnormal]; Platelet Count=66.0 K/uL[abnormal]; Hematocrit=34.5 %[abnormal]; Hemoglobin=11.3 g/dL[abnormal]; Platelet Count=33.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=994.0 IU/L[abnormal]; Alkaline Phosphatase=351.0 IU/L[abnormal]; Anion Gap=14.0 mEq/L; Asparate Aminotransferase (AST)=818.0 IU/L[abnormal]; Bicarbonate=23.0 mEq/L; Bilirubin, Direct=0.7 mg/dL[abnormal]; Bilirubin, Indirect=0.9 mg/dL; Bilirubin, Total=1.6 mg/dL[abnormal]; Calcium, Total=8.9 mg/dL; Creatinine=1.2 mg/dL; Glucose=129.0 mg/dL[abnormal]; Magnesium=1.9 mg/dL; Phosphate=2.5 mg/dL[abnormal]; Potassium=3.9 mEq/L; Hematocrit=34.0 %[abnormal]; Hemoglobin=11.1 g/dL[abnormal]; Platelet Count=31.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=956.0 IU/L[abnormal]; Alkaline Phosphatase=373.0 IU/L[abnormal]; Asparate Aminotransferase (AST)=783.0 IU/L[abnormal]; Bilirubin, Total=1.6 mg/dL[abnormal]; Hematocrit=35.4 %[abnormal]; Hemoglobin=11.5 g/dL[abnormal]; Platelet Count=38.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=938.0 IU/L[abnormal]; Alkaline Phosphatase=395.0 IU/L[abnormal]; Asparate Aminotransferase (AST)=684.0 IU/L[abnormal]; Bilirubin, Total=1.6 mg/dL[abnormal]; Hematocrit=33.8 %[abnormal]; Hemoglobin=11.0 g/dL[abnormal]; Platelet Count=29.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=824.0 IU/L[abnormal]",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L",
+          "Alanine Aminotransferase (ALT)=24.0 IU/L; Alkaline Phosphatase=138.0 IU/L[abnormal]; Anion Gap=17.0 mEq/L; Asparate Aminotransferase (AST)=69.0 IU/L[abnormal]; Bicarbonate=20.0 mEq/L[abnormal]; Bilirubin, Total=3.7 mg/dL[abnormal]; Calcium, Total=7.7 mg/dL[abnormal]; Creatinine=0.7 mg/dL; Glucose=79.0 mg/dL; Magnesium=1.4 mg/dL[abnormal]; Phosphate=2.9 mg/dL; Potassium=3.7 mEq/L; Hematocrit=38.0 %[abnormal]; Hemoglobin=12.7 g/dL[abnormal]; Platelet Count=160.0 K/uL; Hematocrit=35.2 %[abnormal]; Hemoglobin=11.6 g/dL[abnormal]; Platelet Count=148.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=20.0 IU/L; Alkaline Phosphatase=128.0 IU/L; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=59.0 IU/L[abnormal]; Bicarbonate=24.0 mEq/L; Bilirubin, Total=2.5 mg/dL[abnormal]; Calcium, Total=7.4 mg/dL[abnormal]; Creatinine=0.8 mg/dL; Glucose=95.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.0 mg/dL; Potassium=4.0 mEq/L; Hematocrit=37.0 %[abnormal]; Hemoglobin=12.3 g/dL[abnormal]; Platelet Count=129.0 K/uL[abnormal]; Alanine Aminotransferase (ALT)=21.0 IU/L; Alkaline Phosphatase=159.0 IU/L[abnormal]; Anion Gap=12.0 mEq/L; Asparate Aminotransferase (AST)=63.0 IU/L[abnormal]; Bicarbonate=26.0 mEq/L; Bilirubin, Total=2.3 mg/dL[abnormal]; Calcium, Total=8.0 mg/dL[abnormal]; Creatinine=0.9 mg/dL; Glucose=93.0 mg/dL; Magnesium=1.6 mg/dL; Phosphate=3.6 mg/dL; Potassium=4.2 mEq/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Alanine Aminotransferase (ALT)": {
+        "name": "Lab_Alanine Aminotransferase (ALT)",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "824.0 IU/L",
+          "21.0 IU/L",
+          "21.0 IU/L",
+          "21.0 IU/L",
+          "21.0 IU/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Encounter",
+        "is_constant": false
+      },
+      "Lab_Alkaline Phosphatase": {
+        "name": "Lab_Alkaline Phosphatase",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "360.0 IU/L",
+          "159.0 IU/L",
+          "159.0 IU/L",
+          "159.0 IU/L",
+          "159.0 IU/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Creatinine": {
+        "name": "Lab_Creatinine",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.14102564102564102,
+        "examples": [
+          "1.0 mg/dL",
+          "0.9 mg/dL",
+          "0.9 mg/dL",
+          "0.9 mg/dL",
+          "0.9 mg/dL"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Platelet Count": {
+        "name": "Lab_Platelet Count",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "29.0 K/uL",
+          "129.0 K/uL",
+          "129.0 K/uL",
+          "129.0 K/uL",
+          "129.0 K/uL"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Hematocrit": {
+        "name": "Lab_Hematocrit",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.15384615384615385,
+        "examples": [
+          "33.8 %",
+          "37.0 %",
+          "37.0 %",
+          "37.0 %",
+          "37.0 %"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Hemoglobin": {
+        "name": "Lab_Hemoglobin",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.1282051282051282,
+        "examples": [
+          "11.0 g/dL",
+          "12.3 g/dL",
+          "12.3 g/dL",
+          "12.3 g/dL",
+          "12.3 g/dL"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "Lab_Potassium": {
+        "name": "Lab_Potassium",
+        "dtype_guess": "object",
+        "missing_rate": 0.02564102564102564,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "3.8 mEq/L",
+          "4.2 mEq/L",
+          "4.2 mEq/L",
+          "4.2 mEq/L",
+          "4.2 mEq/L"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "note_index": {
+        "name": "note_index",
+        "dtype_guess": "float64",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.5897435897435898,
+        "examples": [
+          "0.0",
+          "0.0",
+          "1.0",
+          "2.0",
+          "3.0"
+        ],
+        "numeric_stats": {
+          "mean": 15.0,
+          "std": 14.545904349105742,
+          "min": 0.0,
+          "max": 45.0,
+          "q25": 2.0,
+          "q50": 9.0,
+          "q75": 27.0
+        },
+        "is_potential_phi": false,
+        "inferred_modality": "ClinicalNotes",
+        "is_constant": false
+      },
+      "note_type": {
+        "name": "note_type",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "discharge",
+          "radiology",
+          "radiology",
+          "radiology",
+          "discharge"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "ClinicalNotes",
+        "is_constant": false
+      },
+      "note_charttime": {
+        "name": "note_charttime",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.9358974358974359,
+        "examples": [
+          "2129-07-05T00:00:00",
+          "2149-02-11T10:32:00",
+          "2149-02-11T12:39:00",
+          "2149-02-11T12:51:00",
+          "2149-02-14T00:00:00"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Time",
+        "is_constant": false
+      },
+      "note_text": {
+        "name": "note_text",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.9230769230769231,
+        "examples": [
+          "  Name:  ___                  Unit No:   ___   Admission Date:  ___              Discharge Date:   ___   Date of Birth:  ___             Sex:   M   Service: MEDICINE   Allergies:  No Known Allergies / Adverse Drug Reactions   Attending: ___.   Chief Complaint: post TIPS monitoring   Major Surgical or Invasive Procedure: TIPS ___    History of Present Illness: Mr. ___ is a ___ male with congenital hepatic fibrosis complicated by portal hypertension and variceal  bleeding who presents to the medic",
+          "EXAMINATION:  LIVER OR GALLBLADDER US (SINGLE ORGAN)  INDICATION:  ___ with h/o cirrhosis c/o 3 days worsening ruq abdominal pain// ?portal venous thrombosis  TECHNIQUE:  Grey scale and color Doppler ultrasound images of the abdomen were obtained.  COMPARISON:  ___ ultrasound  FINDINGS:   LIVER: The liver is coarsened and nodular in echotexture. The contour of the liver is nodular, consistent with cirrhosis.  There is a 1.6 cm echogenic focus within the mid right hepatic lobe, peripherally, for ",
+          "EXAMINATION:  CHEST (PA AND LAT)  INDICATION:  ___ with h/o cirrhosis c/o 3 days worsening ruq abdominal pain// ?pneumonia  COMPARISON:  ___  FINDINGS:   PA and lateral views of the chest provided.  There is blunting of the right CP angle indicative of a small effusion.  Otherwise the lungs are clear.  Cardiomediastinal silhouette appears normal.  Bony structures are intact.  No free air below the right hemidiaphragm.  IMPRESSION:   Tiny right pleural effusion, otherwise unremarkable exam. ",
+          "EXAMINATION:  CT abdomen and pelvis  INDICATION:  ___ with h/o cirrhosis and multiple abdominal surgeries c/o 3 days worsening ruq abdominal pain and vomiting  TECHNIQUE:  Single phase split bolus contrast: MDCT axial images were acquired through the abdomen and pelvis following intravenous contrast administration with split bolus technique. Oral contrast was administered.  Coronal and sagittal reformations were performed and reviewed on PACS.  DOSE:  Total DLP (Body) = 665 mGy-cm.  COMPARISON: ",
+          "  Name:  ___                     Unit No:   ___   Admission Date:  ___              Discharge Date:   ___   Date of Birth:  ___             Sex:   M   Service: MEDICINE   Allergies:  Tylenol / Neurontin   Attending: ___   Chief Complaint: RUQ abdominal pain, vomiting, diarrhea   Major Surgical or Invasive Procedure: -diagnostic para ___    History of Present Illness: Mr ___ is a ___ year old man with cirrhosis (EtOH/HCV  untreated, genotype 3)Child Class C, complicated by esophageal  varices, as"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "ClinicalNotes",
+        "is_constant": false
+      },
+      "抽取_Disease": {
+        "name": "抽取_Disease",
+        "dtype_guess": "object",
+        "missing_rate": 0.3076923076923077,
+        "unique_ratio": 0.6025641025641025,
+        "examples": [
+          "congenital hepatic fibrosis; portal hypertension; variceal bleeding; portal vein thrombosis; hyperlipidemia; thrombocytopenia",
+          "cirrhosis; portal venous thrombosis; partially occlusive thrombus in main portal vein",
+          "cirrhosis; pneumonia; small pleural effusion; tiny right pleural effusion",
+          "cirrhosis; portal hypertension; partially occlusive thrombus in main portal vein; gallstone; ileus; portal colopathy; atherosclerotic disease",
+          "cirrhosis; esophageal varices; ascites; hepatic encephalopathy; viral gastroenteritis; portal vein thrombosis; hyponatremia; hyponatremia"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "抽取_Drug": {
+        "name": "抽取_Drug",
+        "dtype_guess": "object",
+        "missing_rate": 0.8205128205128205,
+        "unique_ratio": 0.1282051282051282,
+        "examples": [
+          "tPA; Pravastatin; Nadolol; Lactulose",
+          "Lactulose; Furosemide; Spironolactone; Famotidine; Oxycodone; Multivitamins; Potassium Chloride; Sulfameth/Trimethoprim SS; Calcium carbonate-vitamin D3; Polyethylene Glycol; Heparin; Morphine; Ondansetron",
+          "fentanyl; midazolam; lidocaine",
+          "thrombin",
+          "1% lidocaine"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Medication",
+        "is_constant": false
+      },
+      "抽取_Symptom": {
+        "name": "抽取_Symptom",
+        "dtype_guess": "object",
+        "missing_rate": 0.5512820512820513,
+        "unique_ratio": 0.34615384615384615,
+        "examples": [
+          "variceal bleeding",
+          "right upper quadrant abdominal pain",
+          "right upper quadrant abdominal pain",
+          "right upper quadrant abdominal pain; vomiting",
+          "right upper quadrant abdominal pain; vomiting; diarrhea"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Diagnosis",
+        "is_constant": false
+      },
+      "抽取_Test": {
+        "name": "抽取_Test",
+        "dtype_guess": "object",
+        "missing_rate": 0.20512820512820512,
+        "unique_ratio": 0.3717948717948718,
+        "examples": [
+          "Liver or Gallbladder ultrasound",
+          "Chest X-ray (PA and lateral)",
+          "CT abdomen and pelvis",
+          "follow-up MR",
+          "Duplex Doppler ultrasound abdomen and pelvis"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "抽取_Treatment": {
+        "name": "抽取_Treatment",
+        "dtype_guess": "object",
+        "missing_rate": 0.4358974358974359,
+        "unique_ratio": 0.44871794871794873,
+        "examples": [
+          "TIPS procedure; endoscopic banding",
+          "TIPS",
+          "paracentesis",
+          "Dobhoff feeding tube placement",
+          "therapeutic paracentesis"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Procedures",
+        "is_constant": false
+      },
+      "抽取_Anatomy": {
+        "name": "抽取_Anatomy",
+        "dtype_guess": "object",
+        "missing_rate": 0.8205128205128205,
+        "unique_ratio": 0.16666666666666666,
+        "examples": [
+          "esophageal varices; gastric varices",
+          "right hepatic lobe; main portal vein; common hepatic duct; pancreas; right kidney; aorta; inferior vena cava",
+          "right hemidiaphragm",
+          "heart; GE junction; main portal vein; pancreas; spleen; splenic vein; adrenal glands; kidneys; stomach and duodenum",
+          "GE junction"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "抽取_LabValue": {
+        "name": "抽取_LabValue",
+        "dtype_guess": "object",
+        "missing_rate": 0.717948717948718,
+        "unique_ratio": 0.24358974358974358,
+        "examples": [
+          "WBC:4.2 10^9/L; RBC:3.93 10^12/L; Hgb:11.0 g/dL; Hct:33.8 %; RDW-SD:47.3 fL; Plt Ct:29 10^9/L; Glucose:109 mg/dL; ALT:824 U/L; AST:556 U/L; LDH:289 U/L; AlkPhos:360 U/L; Total Bilirubin:1.8 mg/dL; Urea Nitrogen:15 mg/dL; Creatinine:1.0 mg/dL; Sodium:141 mmol/L; Potassium:3.8 mmol/L; Chloride:104 mmol/L; Bicarbonate:23 mmol/L; Anion Gap:14 mmol/L; MELD-NA:16; MELD-NA:11; Hemoglobin:11; Creatinine:1.0",
+          "common hepatic duct diameter:5 mm; spleen size:13.7 cm; previous spleen size:12 cm",
+          "largest renal cyst size:3.1 cm",
+          "spleen size:13.7 cm; previous spleen size:12 cm; WBC:5.4 10^9/L; Hgb:14.0 g/dL; RBC:3.97 10^12/L; MCV:106 fL; MCH:35.3 pg; MCHC:33.2 g/dL; RDW-SD:56.4 fL; Neutrophils:65.3 %; Monocytes:10.4 %; Basophils:1.7 %; Absolute Neutrophils:3.51 10^9/L; Absolute Lymphocytes:1.08 10^9/L; Absolute Monocytes:0.56 10^9/L; Absolute Eosinophils:0.1 10^9/L; Absolute Basophils:0.09 10^9/L; PTT:38.7 seconds; Glucose:144 mg/dL; Sodium:130 mmol/L; Potassium:4.8 mmol/L; Chloride:101 mmol/L; Bicarbonate:15 mmol/L; Anion Gap:19 mmol/L; ALT:32 U/L; AST:127 U/L; AlkPhos:145 U/L; Total Bilirubin:4.7 mg/dL; Albumin:2.8 g/dL; Lactate:2.6 mmol/L; Calcium:7.7 mg/dL; Phosphorus:2.9 mg/dL; Magnesium:1.4 mg/dL; WBC:5.1 10^9/L; RBC:3.46 10^12/L; Hgb:12.3 g/dL; Hct:37.0 %; MCV:107 fL; MCH:35.5 pg; RDW-SD:55.5 fL; PTT:36.8 seconds; Glucose:93 mg/dL; Sodium:133 mmol/L; Potassium:4.2 mmol/L; Chloride:99 mmol/L; Bicarbonate:26 mmol/L; Anion Gap:12 mmol/L; ALT:21 U/L; AST:63 U/L; AlkPhos:159 U/L; Total Bilirubin:2.3 mg/dL; Albumin:2.4 g/dL; Calcium:8.0 mg/dL; Phosphorus:3.6 mg/dL; Magnesium:1.6 mg/dL",
+          "main portal vein velocity:13.9 cm/sec; common bile duct diameter:4 mm; spleen size:20.7 cm; right kidney size:11.4 cm; left kidney size:11.1 cm"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Labs",
+        "is_constant": false
+      },
+      "抽取_Finding": {
+        "name": "抽取_Finding",
+        "dtype_guess": "object",
+        "missing_rate": 0.1794871794871795,
+        "unique_ratio": 0.8076923076923077,
+        "examples": [
+          "liver coarsened and nodular echotexture; nodular liver contour; 1.6 cm echogenic focus in mid right hepatic lobe; normal hepatopetal flow in main portal vein; large volume ascites; no intrahepatic biliary dilation; no gallstones; limited visualization of pancreas due to bowel gas; splenomegaly; no hydronephrosis in right kidney; aorta and IVC within normal limits",
+          "blunting of the right costophrenic angle; lungs clear; normal cardiomediastinal silhouette; intact bony structures; no free air below right hemidiaphragm",
+          "trace right pleural effusion; atelectasis in right lower lobe; multiple periesophageal varices near GE junction; nodular and heterogeneous liver enhancement; extensive portosystemic varices; partially distended gallbladder containing a stone; no biliary ductal dilation; normal pancreas; normal spleen size without focal abnormality; splenule; patent splenic vein; normal adrenal glands; renal cortical hypodensities suggestive of simple cysts; moderate volume ascites partially loculated in right upper quadrant; mildly distended small bowel loops without obstruction; normal appendix; minimally thickened colon in right upper quadrant; partially distended urinary bladder; normal prostate size; no lymphadenopathy; aortoiliac calcification; degenerative disc disease at L5-S1",
+          "partially occlusive thrombus within the main portal vein; large volume ascites; worsening splenomegaly; 1.6 cm focus within the right hepatic lobe",
+          "liver coarsened and nodular echotexture; no focal liver mass; main portal vein patent with hepatopetal flow; large ascites; right and left portal veins patent with antegrade flow; main hepatic artery patent with appropriate waveform; right, middle and left hepatic veins patent with appropriate waveforms; splenic vein patent with antegrade flow; no intrahepatic biliary dilation; contracted gallbladder with cholelithiasis; normal pancreas; normal spleen echogenicity; normal cortical echogenicity and corticomedullary differentiation in kidneys; no masses, stones, or hydronephrosis in kidneys; aorta and IVC within normal limits"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "temporal_info": {
+        "name": "temporal_info",
+        "dtype_guess": "object",
+        "missing_rate": 0.9615384615384616,
+        "unique_ratio": 0.02564102564102564,
+        "examples": [
+          "Admission:Admission Date:  ___; Discharge:Discharge Date:   ___",
+          "Admission:Admission Date:  ___; Discharge:Discharge Date:   ___",
+          "procedure duration:total intra-service time of 13 min"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": "Vitals",
+        "is_constant": false
+      },
+      "quantity_info": {
+        "name": "quantity_info",
+        "dtype_guess": "object",
+        "missing_rate": 0.8846153846153846,
+        "unique_ratio": 0.11538461538461539,
+        "examples": [
+          "Lactulose 30 mL DAILY; Nadolol 40 mg DAILY; Pravastatin 40 mg QPM",
+          "Lactulose 30 mL TID; Furosemide 20 mg DAILY; Spironolactone 50 mg DAILY; Famotidine 20 mg Q12H; Oxycodone 10 mg Q6H; Multivitamins 1 TAB DAILY; Potassium Chloride 10 mEq DAILY; Sulfameth/Trimethoprim SS 1 TAB DAILY; Calcium carbonate-vitamin D3 600 mg DAILY; Polyethylene Glycol 17 g DAILY; Heparin drip; Morphine 4 mg IV x2; Ondansetron 4 mg IV",
+          "fentanyl 50 mcg; midazolam 2 mg",
+          "thrombin 1050 units 10.5 ml",
+          "1% lidocaine"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "impression": {
+        "name": "impression",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.9102564102564102,
+        "examples": [
+          "Post TIPS monitoring for congenital hepatic fibrosis with portal hypertension and variceal bleeding. No hepatic encephalopathy noted. Mild post-op complication resolved with albumin. Liver function tests elevated but improving.",
+          "Cirrhosis with new partially occlusive thrombus within the main portal vein, large volume ascites, worsening splenomegaly, and a new 1.6 cm echogenic focus in the right hepatic lobe requiring follow-up MR.",
+          "Tiny right pleural effusion, otherwise unremarkable exam.",
+          "Cirrhosis with portal hypertension, moderate ascites partially loculated in right upper quadrant, extensive portosystemic varices, new partially occlusive thrombus in main portal vein, gallbladder stone, small bowel distention likely ileus, mild proximal colon thickening suggesting portal colopathy, trace right pleural effusion with chronic atelectasis in right lower lung, and extensive atherosclerotic disease of the aorta.",
+          "Patient with Child Class C cirrhosis due to alcohol and untreated hepatitis C (genotype 3), complicated by esophageal varices, ascites, and hepatic encephalopathy, presenting with acute on chronic right upper quadrant abdominal pain, vomiting, and diarrhea likely due to viral gastroenteritis. Imaging shows new partially occlusive portal vein thrombosis, large volume ascites, worsening splenomegaly, and a new 1.6 cm hepatic lesion requiring follow-up MRI. Hospital course complicated by hyponatremia and non-occlusive portal vein thrombosis; anticoagulation was deferred due to compliance concerns. Patient treated with IV fluids, pain control, antiemetics, and heparin drip. Discharged home with stable condition and instructions for follow-up."
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "indication": {
+        "name": "indication",
+        "dtype_guess": "object",
+        "missing_rate": 0.0641025641025641,
+        "unique_ratio": 0.8846153846153846,
+        "examples": [
+          "Post TIPS monitoring for congenital hepatic fibrosis with portal hypertension and variceal bleeding.",
+          "Right upper quadrant abdominal pain with history of cirrhosis, suspected portal venous thrombosis.",
+          "Right upper quadrant abdominal pain with history of cirrhosis, suspected pneumonia.",
+          "Right upper quadrant abdominal pain and vomiting with history of cirrhosis and multiple abdominal surgeries.",
+          "Right upper quadrant abdominal pain, vomiting, and diarrhea in a patient with cirrhosis and history of multiple abdominal surgeries."
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      },
+      "relations": {
+        "name": "relations",
+        "dtype_guess": "object",
+        "missing_rate": 0.717948717948718,
+        "unique_ratio": 0.2692307692307692,
+        "examples": [
+          "TIPS procedure --TreatmentFor--> portal hypertension; TIPS procedure --TreatmentFor--> variceal bleeding; endoscopic banding --TreatmentFor--> esophageal varices; endoscopic banding --TreatmentFor--> gastric varices; tPA --TreatmentFor--> portal vein thrombosis",
+          "1.6 cm echogenic focus in mid right hepatic lobe --LocatedIn--> right hepatic lobe; partially occlusive thrombus in main portal vein --LocatedIn--> main portal vein",
+          "blunting of the right costophrenic angle --LocatedIn--> right costophrenic angle; no free air below right hemidiaphragm --LocatedIn--> right hemidiaphragm",
+          "multiple periesophageal varices --LocatedIn--> GE junction; partially occlusive thrombus in main portal vein --LocatedIn--> main portal vein; partially distended gallbladder containing a stone --LocatedIn--> gallbladder; renal cortical hypodensities suggestive of simple cysts --LocatedIn--> kidneys; moderate volume ascites partially loculated in right upper quadrant --LocatedIn--> right upper quadrant; mildly distended small bowel loops --LocatedIn--> small bowel; minimally thickened colon --LocatedIn--> proximal colon",
+          "heparin drip --TreatmentFor--> partially occlusive thrombus within the main portal vein; morphine 4mg IV --TreatmentFor--> right upper quadrant abdominal pain; ondansetron 4mg IV --TreatmentFor--> vomiting; Lactulose --TreatmentFor--> hepatic encephalopathy; Furosemide --TreatmentFor--> ascites; Spironolactone --TreatmentFor--> ascites; Sulfameth/Trimethoprim SS --TreatmentFor--> SBP prophylaxis; Oxycodone --TreatmentFor--> chronic abdominal pain"
+        ],
+        "numeric_stats": {},
+        "is_potential_phi": false,
+        "inferred_modality": null,
+        "is_constant": false
+      }
+    }
+  },
+  "agent_decisions": {
+    "must_have_columns": [
+      "record_index",
+      "入院时间",
+      "出院时间",
+      "年龄_入院时",
+      "性别",
+      "主诊断_icd_code",
+      "主诊断_icd_title",
+      "诊断总数",
+      "所有诊断_icd_codes",
+      "手术操作总数",
+      "所有手术操作_codes",
+      "所有手术操作_titles",
+      "用药总数",
+      "所有用药",
+      "体温_C",
+      "脉搏_次每分",
+      "呼吸_次每分",
+      "收缩压",
+      "舒张压",
+      "总胆红素",
+      "直接胆红素",
+      "ALT",
+      "AST",
+      "碱性磷酸酶",
+      "GGT",
+      "INR",
+      "身高_cm",
+      "体重_kg",
+      "BMI",
+      "实验室检验_事件数",
+      "实验室检验_摘要"
+    ],
+    "useful_columns": [
+      "入院科室",
+      "入院类型",
+      "住院天数",
+      "死亡时间",
+      "Lab_Alanine Aminotransferase (ALT)",
+      "Lab_Alkaline Phosphatase",
+      "Lab_Creatinine",
+      "Lab_Platelet Count",
+      "Lab_Hematocrit",
+      "Lab_Hemoglobin",
+      "Lab_Potassium",
+      "note_index",
+      "note_type",
+      "note_charttime",
+      "抽取_Disease",
+      "抽取_Drug",
+      "抽取_Symptom",
+      "抽取_Test",
+      "抽取_Treatment",
+      "抽取_LabValue",
+      "抽取_Finding"
+    ],
+    "maybe_columns": [
+      "temporal_info",
+      "quantity_info",
+      "impression",
+      "indication",
+      "relations"
+    ],
+    "drop_columns": [],
+    "reason_by_column": {
+      "record_index": "Essential for traceability and joining with other datasets.",
+      "入院时间": "Important for defining the time window of the index event (hospital admission).",
+      "出院时间": "Relevant for understanding the duration of the hospital stay.",
+      "年龄_入院时": "Demographic information is crucial for cohort selection.",
+      "性别": "Demographic information is crucial for cohort selection.",
+      "主诊断_icd_code": "Primary diagnosis is essential for identifying patients with cirrhosis or hepatic failure.",
+      "主诊断_icd_title": "Provides a clear description of the primary diagnosis.",
+      "诊断总数": "Useful for understanding the complexity of the patient's condition.",
+      "所有诊断_icd_codes": "Helps in identifying all relevant diagnoses for the patient.",
+      "手术操作总数": "Important for understanding the number of procedures performed during the hospitalization.",
+      "所有手术操作_codes": "Provides detailed information about the surgical procedures.",
+      "所有手术操作_titles": "Provides a clear description of the surgical procedures.",
+      "用药总数": "Relevant for understanding the medication regimen during the hospitalization.",
+      "所有用药": "Provides detailed information about the medications used.",
+      "体温_C": "Vital sign, important for monitoring the patient's condition.",
+      "脉搏_次每分": "Vital sign, important for monitoring the patient's condition.",
+      "呼吸_次每分": "Vital sign, important for monitoring the patient's condition.",
+      "收缩压": "Vital sign, important for monitoring the patient's condition.",
+      "舒张压": "Vital sign, important for monitoring the patient's condition.",
+      "总胆红素": "Relevant lab value for liver function.",
+      "直接胆红素": "Relevant lab value for liver function.",
+      "ALT": "Relevant lab value for liver function.",
+      "AST": "Relevant lab value for liver function.",
+      "碱性磷酸酶": "Relevant lab value for liver function.",
+      "GGT": "Relevant lab value for liver function.",
+      "INR": "Relevant lab value for coagulation status, important in liver disease.",
+      "身高_cm": "Demographic information, useful for BMI calculation.",
+      "体重_kg": "Demographic information, useful for BMI calculation.",
+      "BMI": "Demographic information, useful for assessing body composition.",
+      "实验室检验_事件数": "Relevant for understanding the frequency of lab tests.",
+      "实验室检验_摘要": "Provides a summary of all laboratory test results, which is crucial for the task."
+    },
+    "warnings": [
+      "Some columns like '抽取_Anatomy' and '抽取_Finding' may contain detailed anatomical and clinical findings that could be PHI. Ensure proper de-identification before use."
+    ],
+    "transform_suggestions": {
+      "入院时间": "Convert to relative days from the index event (hospital admission).",
+      "出院时间": "Convert to relative days from the index event (hospital admission).",
+      "note_charttime": "Convert to relative days from the index event (hospital admission)."
+    },
+    "normalization_info": {
+      "must_have_unmatched": [],
+      "useful_unmatched": [],
+      "maybe_unmatched": [],
+      "drop_unmatched": [],
+      "reason_unmatched": [],
+      "transform_unmatched": []
+    },
+    "task_spec": {
+      "task_type": "cohort_selection",
+      "need_modalities": [
+        "Identifiers/Keys",
+        "Time",
+        "Demographics",
+        "Encounter",
+        "Diagnosis",
+        "Medication",
+        "Labs",
+        "Vitals",
+        "Procedures",
+        "Outcomes"
+      ],
+      "uncertainty": 0.9,
+      "index_event": "Hospital admission for cirrhosis or hepatic failure",
+      "time_window": "During hospitalization and at discharge",
+      "privacy_mode": "strict"
+    }
+  },
+  "hard_gate_overrides": [
+    {
+      "column": "入院时间",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "出院时间",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "入院科室",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "入院类型",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "死亡时间",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "性别",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "主诊断_icd_code",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "主诊断_icd_title",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "所有诊断_icd_codes",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "所有手术操作_codes",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "所有手术操作_titles",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "所有用药",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "实验室检验_摘要",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Alanine Aminotransferase (ALT)",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Alkaline Phosphatase",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Creatinine",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Platelet Count",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Hematocrit",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Hemoglobin",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "Lab_Potassium",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "note_type",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "note_charttime",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_Disease",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_Drug",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_Symptom",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_Test",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_Treatment",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_LabValue",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    },
+    {
+      "column": "抽取_Finding",
+      "action": "downgraded_to_maybe",
+      "reason": "Free text in non-keep mode"
+    }
+  ],
+  "final_columns": [
+    "record_index",
+    "入院时间",
+    "出院时间",
+    "入院科室",
+    "入院类型",
+    "死亡时间",
+    "住院天数",
+    "年龄_入院时",
+    "性别",
+    "主诊断_icd_code",
+    "主诊断_icd_title",
+    "诊断总数",
+    "所有诊断_icd_codes",
+    "手术操作总数",
+    "所有手术操作_codes",
+    "所有手术操作_titles",
+    "用药总数",
+    "所有用药",
+    "体温_C",
+    "脉搏_次每分",
+    "呼吸_次每分",
+    "收缩压",
+    "舒张压",
+    "总胆红素",
+    "直接胆红素",
+    "ALT",
+    "AST",
+    "碱性磷酸酶",
+    "GGT",
+    "INR",
+    "身高_cm",
+    "体重_kg",
+    "BMI",
+    "实验室检验_事件数",
+    "实验室检验_摘要",
+    "Lab_Alanine Aminotransferase (ALT)",
+    "Lab_Alkaline Phosphatase",
+    "Lab_Creatinine",
+    "Lab_Platelet Count",
+    "Lab_Hematocrit",
+    "Lab_Hemoglobin",
+    "Lab_Potassium",
+    "note_index",
+    "note_type",
+    "note_charttime",
+    "抽取_Disease",
+    "抽取_Drug",
+    "抽取_Symptom",
+    "抽取_Test",
+    "抽取_Treatment",
+    "抽取_LabValue",
+    "抽取_Finding",
+    "temporal_info",
+    "quantity_info",
+    "impression",
+    "indication",
+    "relations"
+  ],
+  "warnings": [
+    "Some columns like '抽取_Anatomy' and '抽取_Finding' may contain detailed anatomical and clinical findings that could be PHI. Ensure proper de-identification before use."
+  ],
+  "config_used": {
+    "privacy_mode": "strict",
+    "keep_free_text": false,
+    "max_rows_profile": 1000,
+    "max_final_columns": 100,
+    "sampling_method": "random",
+    "random_seed": 42,
+    "input_sheet_name": null,
+    "model_name": "dashscope/qwen-max",
+    "require_llm": true,
+    "selector_input_mode": "full_schema"
+  }
+}
