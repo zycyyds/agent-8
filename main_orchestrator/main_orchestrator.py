@@ -110,6 +110,21 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
     )
 
 
+def _build_single_step_payload(trace_collector, step_index: int, input_text: str, duration: float, summary: str, retrieved_bullet_ids: list[str]):
+    if not trace_collector.steps or abs(step_index) > len(trace_collector.steps):
+        return None
+    step = trace_collector.steps[step_index]
+    collector_cls = type(trace_collector)
+    temp_collector = collector_cls()
+    temp_collector.steps = [step]
+    return temp_collector.build_trace_payload(
+        input_text=input_text,
+        duration_seconds=duration,
+        orchestrator_summary=summary,
+        retrieved_bullet_ids=retrieved_bullet_ids,
+    )
+
+
 async def main():
     agentscope.init(project="MultiAgentPipeline", name="MainOrchestrator")
 
@@ -152,6 +167,21 @@ async def main():
             print(f"[Orchestrator] 共收集到 {len(trace_collector)} 个步骤的完整 Trace。")
 
             final_summary_text = _format_orchestrator_summary_content(msg.content)
+
+            for idx in range(len(trace_collector)):
+                step_payload = _build_single_step_payload(
+                    trace_collector,
+                    idx,
+                    user_input,
+                    duration,
+                    final_summary_text,
+                    used_bullet_ids,
+                )
+                if not step_payload:
+                    continue
+                memory_feedback = await report_pipeline_result(step_payload)
+                print(f"\n[Memory Supervisor Step {idx + 1} 反思结果]\n{memory_feedback}\n")
+
             trace_payload = trace_collector.build_trace_payload(
                 input_text=user_input,
                 duration_seconds=duration,
@@ -160,7 +190,7 @@ async def main():
             )
 
             memory_feedback = await report_pipeline_result(trace_payload)
-            print(f"\n[Memory Supervisor 反思结果]\n{memory_feedback}\n")
+            print(f"\n[Memory Supervisor 全流程反思结果]\n{memory_feedback}\n")
         except EOFError:
             break
 
