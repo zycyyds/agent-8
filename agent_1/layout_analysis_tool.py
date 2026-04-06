@@ -692,7 +692,7 @@ def organize_dataset_by_modality(
             )
 
     if not output_root:
-        output_root = os.path.join(project_root, "data")
+        output_root = os.path.join(project_root, "program", "output", "data")
     
     raw_root = os.path.join(project_root, "rawdata")
     
@@ -1315,7 +1315,7 @@ def collect_image_files(target_path: str) -> ToolResponse:
         )
 
     # Output directories
-    data_root = os.path.join(project_root, "data")
+    data_root = os.path.join(project_root, "program", "output", "data")
     text_root = os.path.join(data_root, "text")
     table_root = os.path.join(data_root, "table")
     

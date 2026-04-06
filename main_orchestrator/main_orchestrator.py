@@ -22,6 +22,7 @@ if _orchestrator_dir not in sys.path:
 from step_wrappers import (
     get_trace_collector,
     run_step1_modal_recognition,
+    run_step2_3_medical_data_cleaner,
     run_step2_parse_extract,
     run_step3_semantic_standardization,
     run_step4_data_quality_repair,
@@ -64,6 +65,7 @@ def _format_orchestrator_summary_content(content) -> str:
 def _build_orchestrator(context_str: str) -> ReActAgent:
     toolkit = Toolkit()
     toolkit.register_tool_function(run_step1_modal_recognition)
+    toolkit.register_tool_function(run_step2_3_medical_data_cleaner)
     toolkit.register_tool_function(run_step2_parse_extract)
     toolkit.register_tool_function(run_step3_semantic_standardization)
     toolkit.register_tool_function(run_step4_data_quality_repair)
@@ -75,14 +77,16 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
 你的任务是接收用户输入，并调用工具完成数据处理流水线。
 
 【当前可用步骤】
-1. 调用 `run_step1_modal_recognition` : 数据感知与模态识别
+1. 调用 `run_step1_modal_recognition`：数据感知与模态识别
+2. 调用 `run_step2_3_medical_data_cleaner`：医学数据清洗、抽取、标准化与量纲统一
 
 【执行规则】
-1. 当用户输入路径时，使用且仅使用一次 `run_step1_modal_recognition` 工具。
-2. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具，让 Generator 在任务开始前先读 Playbook。
-3. 当你收到 `run_step1_modal_recognition` 工具返回的结果或【最终报告】时，请你直接将报告内容总结输出给用户，然后结束当前任务，绝不要再次调用该工具。
-4. 不要尝试调用不存在的工具。
-5. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
+1. 当用户输入路径时，先调用且仅调用一次 `run_step1_modal_recognition`。
+2. 在 `run_step1_modal_recognition` 成功返回后，继续调用且仅调用一次 `run_step2_3_medical_data_cleaner`。
+3. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
+4. 当你收到 `run_step2_3_medical_data_cleaner` 的有效结果后，直接将整个流水线结果总结输出给用户，然后结束当前任务。
+5. 不要调用未在【当前可用步骤】中列出的工具。
+6. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
 
 【ACE Playbook (来源于你的 Memory Agent)】
 {context_str}

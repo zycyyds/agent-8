@@ -1,6 +1,7 @@
 import importlib
 import json
 import os
+import sys
 import time
 from typing import Any
 
@@ -121,7 +122,7 @@ def _invoke_organize_dataset_tool(toolkit_path: str, validated_json_path: str | 
     preset_kwargs = _load_tool_preset_kwargs(toolkit_path, "organize_dataset_by_modality")
     tool_input: dict[str, Any] = {
         "validated_json_path": validated_json_path,
-        "output_root": os.path.join(project_root, "data"),
+        "output_root": os.path.join(project_root, "program", "output", "data"),
         "result_json_dir": os.path.join(project_root, "output", "result_json"),
         "rawdata_root": os.path.join(project_root, "rawdata"),
     }
@@ -461,6 +462,85 @@ def get_trace_collector() -> PipelineTraceCollector:
     return _trace_collector
 
 
+def _get_project_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _get_program_output_root() -> str:
+    return os.path.join(_get_project_root(), "program", "output")
+
+
+def _get_default_step2_3_input_path(input_data: str) -> str:
+    if input_data and os.path.isdir(str(input_data)):
+        return str(input_data)
+    return os.path.join(_get_program_output_root(), "data")
+
+
+def _load_step1_5_cleaner_components():
+    cleaner_root = os.path.join(
+        _get_project_root(),
+        "medical-data-pipeline-public",
+        "step1_5_medical_data_cleaner",
+    )
+    if cleaner_root not in sys.path:
+        sys.path.insert(0, cleaner_root)
+
+    main_module = importlib.import_module("main")
+    agent_module = importlib.import_module("agents.unified_processing_agent")
+    return main_module.process_single_input, agent_module.UnifiedProcessingAgent
+
+
+def _build_step2_3_summary(data_dir: str, result: dict[str, Any]) -> str:
+    if not result:
+        return f"Step2_3: 未返回结果。输入目录: {data_dir}"
+
+    if not result.get("success"):
+        return (
+            f"Step2_3: 医学数据清洗与标准化失败。\n"
+            f"输入目录: {data_dir}\n"
+            f"错误: {result.get('error', 'unknown error')}"
+        )
+
+    stats = result.get("statistics", {})
+    lines = [
+        "Step2_3: 医学数据清洗与标准化完成。",
+        f"输入目录: {data_dir}",
+        f"数据类型: {result.get('data_type', 'unknown')}",
+    ]
+
+    if result.get("data_type") == "directory":
+        lines.extend(
+            [
+                f"总病人数: {stats.get('total_patients', 0)}",
+                f"总文件数: {stats.get('total_files', 0)}",
+                f"成功处理: {stats.get('processed_files', 0)}",
+                f"处理失败: {stats.get('failed_files', 0)}",
+            ]
+        )
+    elif stats:
+        lines.extend(
+            [
+                f"总行数: {stats.get('total_rows', 'N/A')}",
+                f"术语标准化成功数: {stats.get('terms_standardized', 0)}",
+                f"量纲统一数: {stats.get('values_normalized', 0)}",
+            ]
+        )
+
+    csv_results_folder = result.get("csv_results_folder")
+    if csv_results_folder:
+        lines.append(f"CSV结果目录: {csv_results_folder}")
+
+    output_files = result.get("output_files")
+    if isinstance(output_files, dict) and output_files:
+        lines.append(f"输出文件数: {len(output_files)}")
+
+    output_file = result.get("output_file")
+    if output_file:
+        lines.append(f"输出文件: {output_file}")
+
+    return "\n".join(lines)
+
+
 async def run_step1_modal_recognition(input_data: str, context: str = "") -> ToolResponse:
     toolkit_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -627,6 +707,53 @@ async def run_step2_parse_extract(input_data: str, context: str = "") -> ToolRes
     _trace_collector.record_step(
         step_name="解析与结构化抽取",
         input_data=input_data,
+        output_content=output,
+        context=context,
+    )
+    return ToolResponse(content=output)
+
+
+async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -> ToolResponse:
+    data_dir = _get_default_step2_3_input_path(input_data)
+    project_root = _get_project_root()
+    output_dir = os.path.join(project_root, "program", "output", "step2_3_results")
+
+    if not os.path.isdir(data_dir):
+        output = f"Step2_3: 输入目录不存在，无法执行医学数据清洗与标准化。输入目录: {data_dir}"
+        _trace_collector.record_step(
+            step_name="Step2_3 医学数据清洗与标准化",
+            input_data=data_dir,
+            output_content=output,
+            context=context,
+        )
+        return ToolResponse(content=output)
+
+    try:
+        process_single_input, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
+        agent = UnifiedProcessingAgent(
+            name="Step2_3MedicalCleaner",
+            use_llm=True,
+            use_umls=True,
+            verbose=False,
+        )
+        result = await process_single_input(
+            input_path=data_dir,
+            agent=agent,
+            output_dir=output_dir,
+            verbose=False,
+            auto_save=True,
+            compact=False,
+        )
+        output = _build_step2_3_summary(data_dir, result)
+    except Exception as e:
+        output = (
+            f"Step2_3: 医学数据清洗与标准化执行失败。\n"
+            f"输入目录: {data_dir}\n错误: {e}"
+        )
+
+    _trace_collector.record_step(
+        step_name="Step2_3 医学数据清洗与标准化",
+        input_data=data_dir,
         output_content=output,
         context=context,
     )
