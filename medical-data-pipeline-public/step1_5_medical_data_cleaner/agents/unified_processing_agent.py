@@ -29,7 +29,7 @@ if src_path not in sys.path:
 from agentscope.agent import AgentBase, ReActAgent
 from agentscope.message import Msg
 from agentscope.model import OpenAIChatModel
-from agentscope.formatter import OpenAIChatFormatter
+from config.settings import ThinkingSafeOpenAIChatFormatter
 from agentscope.tool import Toolkit
 
 from config.settings import DataType, ProcessingStage, get_api_config
@@ -147,7 +147,7 @@ class UnifiedProcessingAgent(AgentBase):
             except ImportError:
                 from tools.tools_preprocess import preprocess_medical_input
                 from tools.tools_ocr import extract_text_from_image, is_image_file
-            from agentscope.tool._text_processing._medical_clean import clean_medical_text
+            from tools.tool._text_processing._medical_clean import clean_medical_text
             try:
                 from schema import MedicalExtractionResult  # 从项目根目录导入
             except ImportError:
@@ -239,9 +239,11 @@ class UnifiedProcessingAgent(AgentBase):
 - **绝对不要在entities中使用 Temporal、Time、Date 等category**
 - 每个entity必须有 name、category、original_text
 - 尽量纠正OCR错误（如"美风湿因子"→"类风湿因子"）
-- 不要遗漏任何有临床意义的信息""",
+- 不要遗漏任何有临床意义的信息
+- 所有面向用户的说明、总结、追问、报错都必须使用中文输出
+- 即使原始病历或检验文本是英文，你的自然语言回复也必须是中文；仅结构化字段内容保留原文即可""",
                 model=self.model,
-                formatter=OpenAIChatFormatter(),
+                formatter=ThinkingSafeOpenAIChatFormatter(),
                 toolkit=toolkit,
             )
             

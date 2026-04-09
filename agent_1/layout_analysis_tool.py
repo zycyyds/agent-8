@@ -23,6 +23,8 @@ except ImportError:
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 指向项目根目录
+PROGRAM_OUTPUT_DIR = os.path.join(BASE_DIR, "program", "output")
+PROGRAM_DATA_DIR = os.path.join(PROGRAM_OUTPUT_DIR, "data")
 MODEL_PATH = os.path.join(
     BASE_DIR,
     "agent_1",
@@ -637,7 +639,7 @@ def organize_dataset_by_modality(
         validated_json_path (str | None):
             验证后的 JSON 文件路径。如果未提供，将自动寻找并尝试重新生成。
         output_root (str | None):
-            输出根目录，默认为项目下的 "data" 目录。
+            输出根目录，默认为项目下的 `program/output/data` 目录。
         with_segmentation (bool):
             是否同时执行 doclayout 分割操作，默认 False。
             如果为 True，将根据 YOLO 检测结果裁剪 figure/table/text 区域。
@@ -692,7 +694,7 @@ def organize_dataset_by_modality(
             )
 
     if not output_root:
-        output_root = os.path.join(project_root, "program", "output", "data")
+        output_root = PROGRAM_DATA_DIR
     
     raw_root = os.path.join(project_root, "rawdata")
     
@@ -756,7 +758,7 @@ def organize_dataset_by_modality(
             "message": "数据集整理完成，并已执行分割操作"
         }
     else:
-        # 旧格式：仅复制原图到 data/{id}/{modality}/{category}/
+        # 旧格式：仅复制原图到 program/output/data/{id}/{modality}/{category}/
         if isinstance(data, list):
             for item in data:
                 record_id = item.get("ID", "unknown_id")
@@ -803,7 +805,7 @@ def organize_dataset_by_modality(
     # 此处不再重复调用 _organize_table_and_text_files，避免重复复制
     # stats 中的 table/text 计数已在 collect_image_files 中统计
 
-    # 生成完全按 data 目录树级结构映射的 JSON（自动扁平化底层文件列表）
+    # 生成完全按 program/output/data 目录树级结构映射的 JSON（自动扁平化底层文件列表）
     def scan_dir_as_tree(path):
         res = {}
         files = []
@@ -859,15 +861,15 @@ def _organize_table_and_text_files(
     output_root: str,
 ) -> tuple[dict, dict]:
     """
-    扫描 rawdata 目录，根据后缀名判断 table 和 text 文件，并整理到 data 目录。
+    扫描 rawdata 目录，根据后缀名判断 table 和 text 文件，并整理到 `program/output/data` 目录。
 
     目录结构：
-    - data/{id}/table/{category}/{filename}
-    - data/{id}/text/{category}/{filename}
+    - program/output/data/{id}/table/{category}/{filename}
+    - program/output/data/{id}/text/{category}/{filename}
 
     Args:
         raw_root: rawdata 根目录
-        output_root: 输出根目录（data）
+        output_root: 输出根目录（默认 `program/output/data`）
 
     Returns:
         tuple[dict, dict]: (table_stats, text_stats)
@@ -897,7 +899,7 @@ def _organize_table_and_text_files(
         # 从文件名提取 ID
         record_id = _extract_id(fname)
 
-        # 构建目标路径：data/{id}/{modality_type}/{category}/{filename}
+        # 构建目标路径：program/output/data/{id}/{modality_type}/{category}/{filename}
         dst_dir = os.path.join(output_root, record_id, modality_type, category)
         dst_path = os.path.join(dst_dir, fname)
 
@@ -971,8 +973,8 @@ def _organize_table_and_text_files(
         if os.path.isfile(item_path):
             if item in mimic_note_files:
                 # 根目录下的文件如果是 MIMIC 大表，就不作为普通文件移动，而是执行拆分
-                table_root = os.path.join(output_root, "table") # 这里 output_root 是 data/{id}，其实这里有逻辑冲突
-                # 旧版的 _organize_table_and_text_files 输出直接是 data/{id}，不能在这里统一处理拆分。
+                table_root = os.path.join(output_root, "table") # 这里 output_root 指向统一后的 program/output/data 路径，当前分支仍保留旧逻辑备注。
+                # 旧版的 _organize_table_and_text_files 输出直接定位到单个病人层级，这里暂不调整其拆分策略。
                 pass
             _process_file(item_path, "", item)
         elif os.path.isdir(item_path):
@@ -1069,12 +1071,12 @@ def _execute_segmentation(
     """
     执行 doclayout 分割操作（内部辅助函数）。
 
-    根据 doclayout YOLO 检测结果，将分割后的图片按模态分类保存到 data 目录。
+    根据 doclayout YOLO 检测结果，将分割后的图片按模态分类保存到 `program/output/data` 目录。
 
     目录结构:
-    - data/{id}/picture/{category}/分割/图片/{id}_figure_{n}.jpg  (figure 类)
-    - data/{id}/ocr/{category}/分割/图片/{id}_table_{n}.jpg      (table/text 类)
-    - data/{id}/ocr/{category}/分割/原图/{原文件名}               (原始图片)
+    - program/output/data/{id}/picture/{category}/分割/图片/{id}_figure_{n}.jpg  (figure 类)
+    - program/output/data/{id}/ocr/{category}/分割/图片/{id}_table_{n}.jpg      (table/text 类)
+    - program/output/data/{id}/ocr/{category}/分割/原图/{原文件名}               (原始图片)
 
     Args:
         classification_results_path: 分类结果 JSON 路径
@@ -1291,8 +1293,8 @@ def collect_image_files(target_path: str) -> ToolResponse:
     收集指定路径下所有文件，根据后缀名进行初步分类（文本/表格/图片）。
     
     1. 图片文件：收集并返回列表，供后续流程使用。
-    2. 文本文件 (.txt, .pdf, .doc, .docx, .md, .wps)：直接复制到 data/text 目录。
-    3. 表格文件 (.csv, .xls, .xlsx)：直接复制到 data/table 目录。
+    2. 文本文件 (.txt, .pdf, .doc, .docx, .md, .wps)：直接复制到 `program/output/data` 下的 text 结构目录。
+    3. 表格文件 (.csv, .xls, .xlsx)：直接复制到 `program/output/data` 下的 table 结构目录。
 
     Args:
         target_path (str):
@@ -1315,7 +1317,7 @@ def collect_image_files(target_path: str) -> ToolResponse:
         )
 
     # Output directories
-    data_root = os.path.join(project_root, "program", "output", "data")
+    data_root = PROGRAM_DATA_DIR
     text_root = os.path.join(data_root, "text")
     table_root = os.path.join(data_root, "table")
     
@@ -1347,7 +1349,7 @@ def collect_image_files(target_path: str) -> ToolResponse:
             file_entries.append((full_path, relative_path))
             stats["image"] += 1
         elif ext in ext_text:
-            # Structure: data/{ID}/text/{category}/{filename}
+            # Structure: program/output/data/{ID}/text/{category}/{filename}
             if category:
                 dst = os.path.join(data_root, record_id, "text", category, fname)
             else:
@@ -1371,7 +1373,7 @@ def collect_image_files(target_path: str) -> ToolResponse:
             except Exception as e:
                 print(f"Error copying text file {full_path}: {e}")
         elif ext in ext_table:
-            # Structure: data/{ID}/table/{category}/{filename}
+            # Structure: program/output/data/{ID}/table/{category}/{filename}
             if category:
                 dst = os.path.join(data_root, record_id, "table", category, fname)
             else:
@@ -1400,7 +1402,7 @@ def collect_image_files(target_path: str) -> ToolResponse:
                 
                 # 把这一块大拼图按 subject_id 拆分给各自的患者
                 for subj_id, group in chunk.groupby("subject_id"):
-                    # user 要求: data/subject-id/table/文件
+                    # user 要求: program/output/data/subject-id/table/文件
                     dst_dir = os.path.join(data_root, str(subj_id), "table")
                     os.makedirs(dst_dir, exist_ok=True)
                     dst_path = os.path.join(dst_dir, fname)

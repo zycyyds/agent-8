@@ -34,7 +34,7 @@ def _get_skip_folders() -> Set[str]:
             if env_value.strip() == "":
                 return set()
             return {name.strip() for name in env_value.split(",") if name.strip()}
-        return {'figure', '分割'}
+        return set()
 
 
 def scan_folder_structure(

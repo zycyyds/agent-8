@@ -8,6 +8,9 @@ import os
 from typing import Dict, List
 from enum import Enum
 
+from agentscope.formatter import OpenAIChatFormatter
+from agentscope.message import Msg
+
 
 class DataType(Enum):
     """数据类型枚举"""
@@ -80,7 +83,7 @@ MEDICAL_COLUMN_KEYWORDS = {
 # 遍历目录时默认跳过的文件夹名称
 # 可以通过环境变量 SKIP_FOLDERS 覆盖，多个名称用逗号分隔
 # 例如: export SKIP_FOLDERS="figure,分割,segments,raw"
-DEFAULT_SKIP_FOLDERS = {'figure', '分割'}
+DEFAULT_SKIP_FOLDERS = set()
 
 
 def get_skip_folders() -> set:
@@ -100,6 +103,30 @@ def get_skip_folders() -> set:
             return set()  # 空字符串表示不跳过
         return {name.strip() for name in env_value.split(",") if name.strip()}
     return DEFAULT_SKIP_FOLDERS.copy()
+
+
+class ThinkingSafeOpenAIChatFormatter(OpenAIChatFormatter):
+    """在送入 OpenAI formatter 前过滤 thinking block，避免告警日志。"""
+
+    async def _format(self, msgs: List[Msg]) -> List[Dict]:
+        sanitized_msgs: List[Msg] = []
+        for msg in msgs:
+            content_blocks = [
+                block
+                for block in msg.get_content_blocks()
+                if str(block.get("type") or "") != "thinking"
+            ]
+            sanitized_msgs.append(
+                Msg(
+                    name=msg.name,
+                    content=content_blocks,
+                    role=msg.role,
+                    metadata=msg.metadata,
+                    timestamp=msg.timestamp,
+                    invocation_id=msg.invocation_id,
+                )
+            )
+        return await super()._format(sanitized_msgs)
 
 
 # API配置

@@ -797,7 +797,7 @@ def normalize_unit(
     loinc_code: Optional[str] = None,
     return_source: bool = False,
     prefer_loinc: bool = None
-) -> Tuple[Optional[float], Optional[str], ...]:
+) -> Tuple[Optional[float], Optional[str]] | Tuple[Optional[float], Optional[str], Optional[str]]:
     """
     将医学检验值转换为标准单位 (SI单位或医学常用标准单位)
     

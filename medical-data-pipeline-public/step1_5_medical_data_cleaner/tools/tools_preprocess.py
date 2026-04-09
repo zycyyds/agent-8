@@ -8,7 +8,7 @@ from typing import Union
 
 from agentscope.message import TextBlock
 from agentscope.tool._response import ToolResponse
-from agentscope.tool._text_processing._medical_clean import clean_medical_text
+from tools.tool._text_processing._medical_clean import clean_medical_text
 
 try:
     from tools.tools_ocr import extract_text_from_image, is_image_file

@@ -556,7 +556,7 @@ async def run_step1_modal_recognition(input_data: str, context: str = "") -> Too
         "2）调用 `Infer And Save Layout` 工具进行版面分析（执行后会自动更新分类结果）；\n"
         "3）检查第 2 步返回的结果，如有 `ocr+figure` 模态，调用 `prepare_and_launch_validation_gui` 验证；\n"
         "4）调用 `Organize Dataset By Modality` 整理数据集（必须传入 with_segmentation=True 参数）；\n"
-        "5）最后输出最终报告。"
+        "5）最后输出最终报告，且所有面向用户的总结、追问、报错都必须使用中文。"
     )
 
     if not context:
@@ -715,6 +715,7 @@ async def run_step2_parse_extract(input_data: str, context: str = "") -> ToolRes
 
 async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -> ToolResponse:
     data_dir = _get_default_step2_3_input_path(input_data)
+    print(f"[Step2_3] 使用输入目录: {data_dir}")
     project_root = _get_project_root()
     output_dir = os.path.join(project_root, "program", "output", "step2_3_results")
 

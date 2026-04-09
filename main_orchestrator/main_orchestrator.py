@@ -85,8 +85,9 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
 2. 在 `run_step1_modal_recognition` 成功返回后，继续调用且仅调用一次 `run_step2_3_medical_data_cleaner`。
 3. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
 4. 当你收到 `run_step2_3_medical_data_cleaner` 的有效结果后，直接将整个流水线结果总结输出给用户，然后结束当前任务。
-5. 不要调用未在【当前可用步骤】中列出的工具。
-6. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
+5. 你的最终总结、解释、追问、报错都必须使用中文输出；即使上游工具结果或原始医学文本是英文，也要用中文表述。
+6. 不要调用未在【当前可用步骤】中列出的工具。
+7. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
 
 【ACE Playbook (来源于你的 Memory Agent)】
 {context_str}
@@ -161,12 +162,18 @@ async def main():
                 await orchestrator.interrupt()
                 msg = await orchestrator_task
 
+            if not any(step.get("step_name") == "Step2_3 医学数据清洗与标准化" for step in trace_collector.steps):
+                print("[Orchestrator] 未检测到 Step2_3，进行兜底补跑...")
+                step2_result = await run_step2_3_medical_data_cleaner("", context_str)
+                msg = Msg(name="system", content=step2_result.content, role="system")
+
             duration = time.time() - start_time
 
             print(f"\n[Orchestrator] 流水线执行耗时: {duration:.2f}s。准备上报反思...")
             print(f"[Orchestrator] 共收集到 {len(trace_collector)} 个步骤的完整 Trace。")
 
             final_summary_text = _format_orchestrator_summary_content(msg.content)
+            print(f"\n[Orchestrator] 最终输出:\n{final_summary_text}\n")
 
             for idx in range(len(trace_collector)):
                 step_payload = _build_single_step_payload(
@@ -182,15 +189,6 @@ async def main():
                 memory_feedback = await report_pipeline_result(step_payload)
                 print(f"\n[Memory Supervisor Step {idx + 1} 反思结果]\n{memory_feedback}\n")
 
-            trace_payload = trace_collector.build_trace_payload(
-                input_text=user_input,
-                duration_seconds=duration,
-                orchestrator_summary=final_summary_text,
-                retrieved_bullet_ids=used_bullet_ids,
-            )
-
-            memory_feedback = await report_pipeline_result(trace_payload)
-            print(f"\n[Memory Supervisor 全流程反思结果]\n{memory_feedback}\n")
         except EOFError:
             break
 

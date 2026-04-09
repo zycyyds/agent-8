@@ -27,7 +27,7 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 from agentscope.agent import ReActAgent
-from agentscope.formatter import OpenAIChatFormatter
+from config.settings import ThinkingSafeOpenAIChatFormatter
 from agentscope.message import Msg
 from agentscope.model import OpenAIChatModel
 from agentscope.tool import Toolkit
@@ -74,7 +74,7 @@ def setup_liver_agents() -> Tuple[Optional[ReActAgent], None]:
     try:
         from tools.tools_preprocess import preprocess_medical_input
         from tools.tools_ocr import extract_text_from_image
-        from agentscope.tool._text_processing._medical_clean import clean_medical_text
+        from tools.tool._text_processing._medical_clean import clean_medical_text
 
         toolkit = Toolkit()
         toolkit.create_tool_group(
@@ -103,6 +103,8 @@ def setup_liver_agents() -> Tuple[Optional[ReActAgent], None]:
 ## 工作要求
 - 仔细阅读输入文本，提取所有有临床意义的医学实体
 - entities 的 category 只能是：Disease, Drug, Symptom, Test, Treatment, Anatomy, LabValue, Finding, Other
+- 所有面向用户的说明、总结、追问、报错都必须使用中文输出
+- 即使输入文本是英文，你的自然语言回复也必须是中文；仅结构化字段内容保留原文即可
 
 ## 各类别明确定义
 - **Disease**：疾病诊断（如 cirrhosis, hepatitis, pneumonia）
@@ -126,7 +128,7 @@ def setup_liver_agents() -> Tuple[Optional[ReActAgent], None]:
 - indication 填写检查目的或指征
 - 保持原文精度，不要臆造信息""",
         model=model,
-        formatter=OpenAIChatFormatter(),
+        formatter=ThinkingSafeOpenAIChatFormatter(),
         toolkit=toolkit,
     )
 

@@ -6,10 +6,10 @@
       "id": "chk-00001",
       "content": "混合模态样本处理：必须先完成人工验证并回写结果，再进入数据整理。",
       "section": "validation_checklist",
-      "helpful_count": 2,
+      "helpful_count": 5,
       "harmful_count": 0,
       "created_at": "2026-03-30T15:26:06.599943",
-      "last_used": "2026-03-30T18:08:20.318909",
+      "last_used": "2026-04-07T20:31:05.936074",
       "metadata": {
         "source": "curator"
       },
@@ -19,13 +19,13 @@
       "id": "chk-00002",
       "content": "检测到混合模态样本时，必须先完成人工验证并回写验证结果，再进入数据整理。",
       "section": "validation_checklist",
-      "helpful_count": 2,
+      "helpful_count": 5,
       "harmful_count": 0,
       "created_at": "2026-03-30T15:55:12.556470",
-      "last_used": "2026-03-30T18:08:20.318909",
+      "last_used": "2026-04-08T19:04:10.393246",
       "metadata": {
         "source": "curator",
-        "duplicate_hits": 2
+        "duplicate_hits": 4
       },
       "status": "active"
     },
@@ -34,9 +34,35 @@
       "content": "结构化输出校验失败时，必须回退至确定性安全规则，禁止生成总结式内容。",
       "section": "failure_patterns",
       "helpful_count": 0,
-      "harmful_count": 2,
+      "harmful_count": 5,
       "created_at": "2026-03-30T16:06:15.920795",
-      "last_used": "2026-03-30T18:08:20.320392",
+      "last_used": "2026-04-06T20:37:43.017977",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "archived"
+    },
+    {
+      "id": "out-00001",
+      "content": "输出结论文本必须严格依据工具返回结果生成，禁止自行补充路径、准确率或统计字段。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-08T19:25:14.908071",
+      "last_used": "2026-04-08T19:25:14.908071",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "str-00001",
+      "content": "关键数据判断禁止仅依赖即时生成，必须引用既有稳定规则约束以避免重复偏差。",
+      "section": "strategies_and_hard_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-07T20:35:19.339342",
+      "last_used": "2026-04-07T20:35:19.339342",
       "metadata": {
         "source": "curator"
       },
@@ -46,10 +72,10 @@
       "id": "tool-00001",
       "content": "提示中显式给出的数据必须在结构化输出中被准确反映，不得擅自改写或臆造。",
       "section": "tool_usage",
-      "helpful_count": 3,
+      "helpful_count": 6,
       "harmful_count": 0,
       "created_at": "2026-03-30T16:47:30.524306",
-      "last_used": "2026-03-30T18:08:20.318909",
+      "last_used": "2026-04-07T20:31:05.936074",
       "metadata": {
         "source": "curator"
       },
@@ -59,10 +85,10 @@
       "id": "tool-00002",
       "content": "提示中显式给出的兴趣列表必须在 JSON 输出中被准确反映。",
       "section": "tool_usage",
-      "helpful_count": 2,
+      "helpful_count": 5,
       "harmful_count": 0,
       "created_at": "2026-03-30T17:02:52.106925",
-      "last_used": "2026-03-30T18:08:20.318909",
+      "last_used": "2026-04-07T20:31:05.936074",
       "metadata": {
         "source": "curator"
       },
@@ -72,10 +98,10 @@
       "id": "tool-00003",
       "content": "混合模态数据处理必须优先完成人工验证并回写结果，严禁在未验证情况下直接进入数据整理阶段。",
       "section": "tool_usage",
-      "helpful_count": 0,
+      "helpful_count": 3,
       "harmful_count": 0,
       "created_at": "2026-03-30T18:08:04.050821",
-      "last_used": "2026-03-30T18:14:03.879381",
+      "last_used": "2026-04-07T20:31:05.936074",
       "metadata": {
         "source": "curator",
         "duplicate_hits": 1
@@ -86,22 +112,23 @@
       "id": "tool-00004",
       "content": "混合模态图片必须先调用验证 GUI 并回写结果，确认无误后方可进入数据整理阶段。",
       "section": "tool_usage",
-      "helpful_count": 0,
+      "helpful_count": 3,
       "harmful_count": 0,
       "created_at": "2026-03-31T16:28:08.796870",
-      "last_used": "2026-03-31T16:28:08.796870",
+      "last_used": "2026-04-07T20:31:05.936074",
       "metadata": {
-        "source": "curator"
+        "source": "curator",
+        "duplicate_hits": 2
       },
       "status": "active"
     }
   ],
   "statistics": {
-    "total_executions": 10,
-    "unique_strategies": 7,
-    "last_reflection": "2026-03-31T16:28:08.802115",
-    "total_bullets": 7,
-    "last_refine_at": "2026-03-31T16:28:08.802070",
+    "total_executions": 16,
+    "unique_strategies": 9,
+    "last_reflection": "2026-04-08T19:22:01.002489",
+    "total_bullets": 9,
+    "last_refine_at": "2026-04-08T19:22:01.002435",
     "duplicate_merges": 0,
     "last_query": "rawdata"
   }

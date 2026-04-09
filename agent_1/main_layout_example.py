@@ -71,15 +71,15 @@ async def main():
         "    \"name\": \"prepare_and_launch_validation_gui\",\n"
         "    \"input\": {}\n"
         "}\n\n"
-        "1）调用名为 `Collect Image Files` 的工具，传入用户原始输入作为 `target_path`。该工具会自动分拣文本/表格文件到 data 目录，并返回**待处理的图片列表**及**图片所在根目录路径**（`input_path`）；\n"
+        "1）调用名为 `Collect Image Files` 的工具，传入用户原始输入作为 `target_path`。该工具会自动分拣文本/表格文件到 `program/output/data` 目录，并返回**待处理的图片列表**及**图片所在根目录路径**（`input_path`）；\n"
         "2）调用名为 `Infer And Save Layout` 的工具，将上一步返回的 `input_path` 作为 `target_path` 传入。该工具会对这些图片执行版面分析、自动保存 classification 结果，并返回完整的 `classification` 数组；\n"
         "3）检查上一步返回的 classification 结果，如果发现有任何图片的 modality 为 \"ocr+figure\"，**请立即调用名为 `prepare_and_launch_validation_gui` 的工具**（不需要任何参数）启动验证窗口；\n"
         "   - 如果工具返回状态为 'skipped'（消息包含'已完成验证'），说明验证已完成，直接继续第 4 步；\n"
-        "4）当工具返回成功后，**立即**调用名为 `Organize Dataset By Modality` 的工具，根据验证后的结果将图片分类整理到 `data` 目录；\n"
+        "4）当工具返回成功后，**立即**调用名为 `Organize Dataset By Modality` 的工具，根据验证后的结果将图片分类整理到 `program/output/data` 目录；\n"
         "   - **重要**：必须传入参数 `with_segmentation=True`，以执行分割操作裁剪 figure/table/text 区域；\n"
         "   - 可以通过 `min_ocr_area_ratio` 和 `min_figure_area_ratio` 分别控制文本/图表切片的最小过滤比例；\n"
         "   - 如果需要指定验证结果路径，传入 `validated_json_path` 参数；\n"
-        "5）最后输出 `data` 目录的整理统计结果（包含分割统计）作为最终报告。\n"
+        "5）最后输出 `program/output/data` 目录的整理统计结果（包含分割统计）作为最终报告。\n"
         "\n6）(反思已交由上层主管处理，你只需专注版面分析)"
     )
 

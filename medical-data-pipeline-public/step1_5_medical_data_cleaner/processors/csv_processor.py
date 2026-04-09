@@ -118,7 +118,7 @@ class CSVProcessor:
             from config.settings import get_api_config
             from agentscope.model import OpenAIChatModel
             from agentscope.agent import ReActAgent
-            from agentscope.formatter import OpenAIChatFormatter
+            from config.settings import ThinkingSafeOpenAIChatFormatter
             from agentscope.tool import Toolkit
             
             config = get_api_config()
@@ -143,7 +143,7 @@ class CSVProcessor:
             # 创建工具包
             try:
                 from tools.tools_preprocess import preprocess_medical_input
-                from agentscope.tool._text_processing._medical_clean import clean_medical_text
+                from tools.tool._text_processing._medical_clean import clean_medical_text
                 
                 toolkit = Toolkit()
                 toolkit.create_tool_group(
@@ -242,7 +242,7 @@ Return JSON only."""
                 name="CSVMedicalExpert",
                 sys_prompt=extraction_prompt,
                 model=self.model,
-                formatter=OpenAIChatFormatter(),
+                formatter=ThinkingSafeOpenAIChatFormatter(),
                 toolkit=toolkit if toolkit else None,
             )
             
@@ -261,7 +261,7 @@ Return JSON only."""
                 name="CSVStandardizer",
                 sys_prompt=standardization_prompt,
                 model=self.model,
-                formatter=OpenAIChatFormatter(),
+                formatter=ThinkingSafeOpenAIChatFormatter(),
             )
             
             # 设置提取模式的schema
