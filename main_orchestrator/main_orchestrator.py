@@ -21,6 +21,7 @@ if _orchestrator_dir not in sys.path:
 
 from step_wrappers import (
     get_trace_collector,
+    register_no_thinking_print_hook,
     run_step1_modal_recognition,
     run_step2_3_medical_data_cleaner,
     run_step2_parse_extract,
@@ -30,7 +31,7 @@ from step_wrappers import (
     run_step6_consistency_verification,
     run_step7_phenotype_knowledge_confirmation,
 )
-from memory_supervisor import get_pipeline_context, report_pipeline_result
+from memory_supervisor import get_pipeline_context
 from configs.loader import get_agent_config
 
 
@@ -79,15 +80,19 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
 【当前可用步骤】
 1. 调用 `run_step1_modal_recognition`：数据感知与模态识别
 2. 调用 `run_step2_3_medical_data_cleaner`：医学数据清洗、抽取、标准化与量纲统一
+3. 调用 `run_step4_data_quality_repair`：数据质量检测与自动修复
 
 【执行规则】
 1. 当用户输入路径时，先调用且仅调用一次 `run_step1_modal_recognition`。
 2. 在 `run_step1_modal_recognition` 成功返回后，继续调用且仅调用一次 `run_step2_3_medical_data_cleaner`。
-3. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
-4. 当你收到 `run_step2_3_medical_data_cleaner` 的有效结果后，直接将整个流水线结果总结输出给用户，然后结束当前任务。
-5. 你的最终总结、解释、追问、报错都必须使用中文输出；即使上游工具结果或原始医学文本是英文，也要用中文表述。
-6. 不要调用未在【当前可用步骤】中列出的工具。
-7. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
+3. 在 `run_step2_3_medical_data_cleaner` 成功返回后，继续调用且仅调用一次 `run_step4_data_quality_repair`。
+4. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
+5. `run_step2_3_medical_data_cleaner` 会进入交互式阶段；只有当用户在该阶段输入 `quit` 后，工具才会返回。
+6. `run_step4_data_quality_repair` 默认会读取 `program/output/step2_3_results` 下最新的 `results_*` 目录作为输入。
+7. 当你收到 `run_step4_data_quality_repair` 的有效结果后，再将整个流水线结果总结输出给用户，然后结束当前任务。
+8. 你的最终总结、解释、追问、报错都必须使用中文输出；即使上游工具结果或原始医学文本是英文，也要用中文表述。
+9. 不要调用未在【当前可用步骤】中列出的工具。
+10. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
 
 【ACE Playbook (来源于你的 Memory Agent)】
 {context_str}
@@ -101,7 +106,7 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
         },
     )
 
-    return ReActAgent(
+    agent = ReActAgent(
         name="MainOrchestrator",
         sys_prompt=sys_prompt,
         model=model,
@@ -109,21 +114,7 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
         toolkit=toolkit,
         max_iters=15,
     )
-
-
-def _build_single_step_payload(trace_collector, step_index: int, input_text: str, duration: float, summary: str, retrieved_bullet_ids: list[str]):
-    if not trace_collector.steps or abs(step_index) > len(trace_collector.steps):
-        return None
-    step = trace_collector.steps[step_index]
-    collector_cls = type(trace_collector)
-    temp_collector = collector_cls()
-    temp_collector.steps = [step]
-    return temp_collector.build_trace_payload(
-        input_text=input_text,
-        duration_seconds=duration,
-        orchestrator_summary=summary,
-        retrieved_bullet_ids=retrieved_bullet_ids,
-    )
+    return register_no_thinking_print_hook(agent)
 
 
 async def main():
@@ -169,25 +160,11 @@ async def main():
 
             duration = time.time() - start_time
 
-            print(f"\n[Orchestrator] 流水线执行耗时: {duration:.2f}s。准备上报反思...")
+            print(f"\n[Orchestrator] 流水线执行耗时: {duration:.2f}s。")
             print(f"[Orchestrator] 共收集到 {len(trace_collector)} 个步骤的完整 Trace。")
 
             final_summary_text = _format_orchestrator_summary_content(msg.content)
             print(f"\n[Orchestrator] 最终输出:\n{final_summary_text}\n")
-
-            for idx in range(len(trace_collector)):
-                step_payload = _build_single_step_payload(
-                    trace_collector,
-                    idx,
-                    user_input,
-                    duration,
-                    final_summary_text,
-                    used_bullet_ids,
-                )
-                if not step_payload:
-                    continue
-                memory_feedback = await report_pipeline_result(step_payload)
-                print(f"\n[Memory Supervisor Step {idx + 1} 反思结果]\n{memory_feedback}\n")
 
         except EOFError:
             break

@@ -22,10 +22,49 @@
       "helpful_count": 5,
       "harmful_count": 0,
       "created_at": "2026-03-30T15:55:12.556470",
-      "last_used": "2026-04-08T19:04:10.393246",
+      "last_used": "2026-04-10T16:36:03.250046",
       "metadata": {
         "source": "curator",
-        "duplicate_hits": 4
+        "duplicate_hits": 11
+      },
+      "status": "active"
+    },
+    {
+      "id": "chk-00003",
+      "content": "在多模态数据处理中，应在组织数据集前完成验证 GUI 步骤，以确保布局推断的统计结果与最终分类结果一致，避免直接基于中间摘要进行后续编排。",
+      "section": "validation_checklist",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T14:59:10.106982",
+      "last_used": "2026-04-10T14:59:10.106982",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "data-00001",
+      "content": "在读取任务执行结果时，若编排器总结与工具实际输出存在模态数量差异，应优先采信工具输出中的具体统计，以确保数据分类的准确性。",
+      "section": "data_organization",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T12:51:42.392868",
+      "last_used": "2026-04-10T12:51:42.392868",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "dom-00001",
+      "content": "在处理医疗影像数据时，应优先识别图片模态类型，仅对包含 Figure 的混合模态图片执行人工验证 GUI 步骤，纯 OCR 图片可直接进入整理流程，以节省资源并确保数据准确性。",
+      "section": "domain_heuristics",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-09T19:24:57.667156",
+      "last_used": "2026-04-09T19:24:57.667156",
+      "metadata": {
+        "source": "curator"
       },
       "status": "active"
     },
@@ -43,6 +82,32 @@
       "status": "archived"
     },
     {
+      "id": "fail-00002",
+      "content": "当工具调用因输入路径包含非法控制字符（如 \\x7f）导致类型识别失败时，必须立即对路径字符串执行清洗操作，移除所有不可见控制字符后重试，严禁直接重试原始路径。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T17:56:10.451729",
+      "last_used": "2026-04-10T17:56:10.451729",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "mod-00001",
+      "content": "当版面分析识别出 `ocr+figure` 混合模态时，必须强制触发人工验证流程（GUI），严禁在未获得验证结果前直接进行数据清洗或组织，以确保复杂图表数据的准确性。",
+      "section": "modality_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T16:55:04.118039",
+      "last_used": "2026-04-10T16:55:04.118039",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "out-00001",
       "content": "输出结论文本必须严格依据工具返回结果生成，禁止自行补充路径、准确率或统计字段。",
       "section": "output_contracts",
@@ -50,6 +115,19 @@
       "harmful_count": 0,
       "created_at": "2026-04-08T19:25:14.908071",
       "last_used": "2026-04-08T19:25:14.908071",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00002",
+      "content": "对用户的结论文本必须严格依据工具返回结果生成，不得自行补充路径、准确率或统计字段。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-09T15:25:26.586045",
+      "last_used": "2026-04-09T15:25:26.586045",
       "metadata": {
         "source": "curator"
       },
@@ -121,15 +199,41 @@
         "duplicate_hits": 2
       },
       "status": "active"
+    },
+    {
+      "id": "tool-00005",
+      "content": "遇到混合模态样本时，必须先调用验证工具确认分类，再执行数据集整理操作。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-09T14:15:18.847730",
+      "last_used": "2026-04-09T14:15:18.847730",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00006",
+      "content": "在调用任何文件处理工具前，必须对输入路径参数进行严格校验，确保移除 \\x7f 等不可见控制字符，否则会导致工具无法识别数据类型并报错。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T17:56:10.456030",
+      "last_used": "2026-04-10T17:56:10.456030",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
     }
   ],
   "statistics": {
-    "total_executions": 16,
-    "unique_strategies": 9,
-    "last_reflection": "2026-04-08T19:22:01.002489",
-    "total_bullets": 9,
-    "last_refine_at": "2026-04-08T19:22:01.002435",
+    "total_executions": 29,
+    "unique_strategies": 17,
+    "last_reflection": "2026-04-10T16:55:18.131868",
+    "total_bullets": 17,
+    "last_refine_at": "2026-04-10T16:55:18.131765",
     "duplicate_merges": 0,
-    "last_query": "rawdata"
+    "last_query": "program/output/data"
   }
 }

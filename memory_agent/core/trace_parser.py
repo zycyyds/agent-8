@@ -61,14 +61,12 @@ def normalize_trace_payload(trace_payload: str | dict[str, Any]) -> dict[str, An
     for step in _coerce_list(raw.get("steps")):
         if not isinstance(step, dict):
             continue
-        raw_messages = _coerce_list(step.get("raw_messages"))
-        full_raw_messages = _coerce_list(step.get("full_raw_messages"))
+        raw_messages: list[Any] = []
+        full_raw_messages: list[Any] = []
         full_tool_events = _coerce_list(step.get("full_tool_events"))
         raw_tool_events = _coerce_list(step.get("tool_events"))
         tool_events_preview = _coerce_list(step.get("tool_events_preview"))
         assistant_outputs = [str(item) for item in _coerce_list(step.get("assistant_outputs")) if str(item).strip()]
-        if not assistant_outputs:
-            assistant_outputs = _extract_assistant_outputs_from_messages(full_raw_messages or raw_messages)
         steps.append(
             {
                 "step_name": str(step.get("step_name") or ""),
@@ -80,8 +78,8 @@ def normalize_trace_payload(trace_payload: str | dict[str, Any]) -> dict[str, An
                 "tool_events_preview": tool_events_preview or (raw_tool_events if full_tool_events else []),
                 "full_tool_events": full_tool_events,
                 "final_output": str(step.get("final_output") or ""),
-                "raw_messages": raw_messages,
-                "full_raw_messages": full_raw_messages,
+                "raw_messages": [],
+                "full_raw_messages": [],
                 "truncated_flags": [str(item) for item in _coerce_list(step.get("truncated_flags")) if str(item).strip()],
             }
         )

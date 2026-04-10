@@ -19,6 +19,7 @@ class Config:
     LLM_MODEL: str = "qwen3:8b"
     LLM_TEMPERATURE: float = 0.0
     LLM_SEED: int = 666
+    LLM_ENABLE_THINKING: bool | None = False
 
     # 记忆配置
     MILESTONE_THRESHOLDS: list[int] = None  # 触发深度反思的计数器阈值
@@ -44,6 +45,10 @@ class Config:
                 self.LLM_MODEL = agent_cfg.get("model_name", self.LLM_MODEL)
                 self.LLM_TEMPERATURE = agent_cfg.get("temperature", self.LLM_TEMPERATURE)
                 self.LLM_SEED = agent_cfg.get("seed", self.LLM_SEED)
+                self.LLM_ENABLE_THINKING = agent_cfg.get(
+                    "enable_thinking",
+                    self.LLM_ENABLE_THINKING,
+                )
         except Exception as e:
             print(f"提示: 无法加载全局配置 ({e})，使用默认配置。")
 

@@ -12,9 +12,10 @@ agents:
 
   # 记忆反思智能体 (Memory Agent)
   memory_agent:
-    model_name: "qwen3.5:9b"
+    model_name: "qwen3.5:27b"
     temperature: 0.0
     seed: 666
+    enable_thinking: false
 
   # 主协调者 (Main Orchestrator)
   main_orchestrator:

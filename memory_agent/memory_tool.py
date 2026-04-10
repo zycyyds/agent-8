@@ -20,6 +20,7 @@ MEMORY_BANK_PATH = config.get_memory_bank_path()
 LLM_MODEL = config.LLM_MODEL
 LLM_TEMPERATURE = config.LLM_TEMPERATURE
 LLM_SEED = config.LLM_SEED
+LLM_ENABLE_THINKING = config.LLM_ENABLE_THINKING
 
 _PLAYBOOK_INSTANCE: ACEPlaybookManager | None = None
 _CURRENT_TRACE_PAYLOAD: dict[str, Any] | None = None
@@ -29,6 +30,7 @@ _CURRENT_REFLECTION_PAYLOAD: dict[str, Any] | None = None
 def make_chat_model_factory(_agent_key: str = "memory_agent"):
     return lambda: OllamaChatModel(
         model_name=LLM_MODEL,
+        enable_thinking=LLM_ENABLE_THINKING,
         options={
             "temperature": LLM_TEMPERATURE,
             "seed": LLM_SEED,
@@ -61,6 +63,7 @@ def _create_reflector() -> ACEReflector:
         model_name=LLM_MODEL,
         temperature=LLM_TEMPERATURE,
         seed=LLM_SEED,
+        enable_thinking=LLM_ENABLE_THINKING,
         model_factory=make_chat_model_factory("memory_agent"),
     )
 
@@ -70,6 +73,7 @@ def _create_curator() -> ACECurator:
         model_name=LLM_MODEL,
         temperature=LLM_TEMPERATURE,
         seed=LLM_SEED,
+        enable_thinking=LLM_ENABLE_THINKING,
         model_factory=make_chat_model_factory("memory_agent"),
     )
 

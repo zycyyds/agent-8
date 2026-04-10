@@ -8,6 +8,7 @@ import os
 from typing import Dict, List
 from enum import Enum
 
+from agentscope.agent import ReActAgent
 from agentscope.formatter import OpenAIChatFormatter
 from agentscope.message import Msg
 
@@ -109,24 +110,42 @@ class ThinkingSafeOpenAIChatFormatter(OpenAIChatFormatter):
     """在送入 OpenAI formatter 前过滤 thinking block，避免告警日志。"""
 
     async def _format(self, msgs: List[Msg]) -> List[Dict]:
-        sanitized_msgs: List[Msg] = []
-        for msg in msgs:
-            content_blocks = [
-                block
-                for block in msg.get_content_blocks()
-                if str(block.get("type") or "") != "thinking"
-            ]
-            sanitized_msgs.append(
-                Msg(
-                    name=msg.name,
-                    content=content_blocks,
-                    role=msg.role,
-                    metadata=msg.metadata,
-                    timestamp=msg.timestamp,
-                    invocation_id=msg.invocation_id,
-                )
-            )
+        sanitized_msgs = [strip_thinking_from_msg(msg) for msg in msgs]
         return await super()._format(sanitized_msgs)
+
+
+def strip_thinking_from_msg(msg: Msg) -> Msg:
+    content = getattr(msg, "content", None)
+    if not isinstance(content, list):
+        return msg
+    content_blocks = [
+        block
+        for block in msg.get_content_blocks()
+        if str(block.get("type") or "") != "thinking"
+    ]
+    sanitized_msg = Msg(
+        name=msg.name,
+        content=content_blocks,
+        role=msg.role,
+        metadata=msg.metadata,
+        timestamp=msg.timestamp,
+        invocation_id=msg.invocation_id,
+    )
+    # Preserve the original message id so AgentScope can diff streaming output
+    # instead of re-printing the whole accumulated content on every chunk.
+    sanitized_msg.id = msg.id
+    return sanitized_msg
+
+
+def register_no_thinking_print_hook(agent: ReActAgent) -> ReActAgent:
+    def _hook(_agent: ReActAgent, kwargs: Dict) -> Dict | None:
+        msg = kwargs.get("msg")
+        if isinstance(msg, Msg):
+            kwargs["msg"] = strip_thinking_from_msg(msg)
+        return kwargs
+
+    agent.register_instance_hook("pre_print", "strip_thinking_for_console", _hook)
+    return agent
 
 
 # API配置

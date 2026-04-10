@@ -34,6 +34,7 @@ async def main():
 
     model = OllamaChatModel(
         model_name=config.LLM_MODEL,
+        enable_thinking=config.LLM_ENABLE_THINKING,
         options={
             "temperature": config.LLM_TEMPERATURE,
             "seed": config.LLM_SEED,

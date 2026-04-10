@@ -28,6 +28,7 @@ src_path = os.path.abspath(os.path.join(parent_dir, "../../src"))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+from config.settings import register_no_thinking_print_hook
 from tools.csv_reader import read_csv_data, analyze_columns_for_standardization, read_csv_sample
 
 
@@ -238,13 +239,13 @@ Correct Output:
 
 Return JSON only."""
 
-            self.med_agent = ReActAgent(
+            self.med_agent = register_no_thinking_print_hook(ReActAgent(
                 name="CSVMedicalExpert",
                 sys_prompt=extraction_prompt,
                 model=self.model,
                 formatter=ThinkingSafeOpenAIChatFormatter(),
                 toolkit=toolkit if toolkit else None,
-            )
+            ))
             
             # 创建标准化Agent
             standardization_prompt = """你是医学术语标准化专家。对提取的医学实体进行标准化：
@@ -257,12 +258,12 @@ Return JSON only."""
 
 只返回JSON。"""
 
-            self.std_agent = ReActAgent(
+            self.std_agent = register_no_thinking_print_hook(ReActAgent(
                 name="CSVStandardizer",
                 sys_prompt=standardization_prompt,
                 model=self.model,
                 formatter=ThinkingSafeOpenAIChatFormatter(),
-            )
+            ))
             
             # 设置提取模式的schema
             try:

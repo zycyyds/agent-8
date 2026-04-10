@@ -6,14 +6,20 @@ import os
 import random
 import re
 import shutil
+from contextlib import contextmanager
 
 import pandas as pd
 from dotenv import load_dotenv
-
-from agents.cleaner_designer_agent import create_cleaner_designer_agent
 from agentscope.message import Msg
-from prompts import cleaner_generation_prompt, medical_analysis_prompt
-from validators.data_validator import DataValidator
+
+try:
+    from .agents.cleaner_designer_agent import create_cleaner_designer_agent
+    from .prompts import cleaner_generation_prompt, medical_analysis_prompt
+    from .validators.data_validator import DataValidator
+except ImportError:
+    from agents.cleaner_designer_agent import create_cleaner_designer_agent
+    from prompts import cleaner_generation_prompt, medical_analysis_prompt
+    from validators.data_validator import DataValidator
 
 
 load_dotenv()
@@ -25,17 +31,51 @@ MAX_GENERATION_ATTEMPTS = 4
 MAX_RUNTIME_REPAIR_ATTEMPTS = 2
 
 
-def resolve_input_csv(data_dir: str) -> str:
+@contextmanager
+def temporary_working_directory(path: str):
+    previous_cwd = os.getcwd()
+    os.makedirs(path, exist_ok=True)
+    try:
+        os.chdir(path)
+        yield
+    finally:
+        os.chdir(previous_cwd)
+
+
+def get_module_dir() -> str:
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+def get_default_validation_config_path() -> str:
+    return os.path.join(get_module_dir(), "validation_config.json")
+
+
+def resolve_input_csv(data_path: str) -> str:
+    data_path = os.path.abspath(data_path)
+    if os.path.isfile(data_path):
+        if not data_path.lower().endswith(".csv"):
+            raise FileNotFoundError(f"输入文件不是 CSV: {data_path}")
+        return data_path
+
+    if not os.path.isdir(data_path):
+        raise FileNotFoundError(f"输入路径不存在: {data_path}")
+
     files = sorted(
         name
-        for name in os.listdir(data_dir)
-        if name.lower().endswith(".csv") and os.path.isfile(os.path.join(data_dir, name))
+        for name in os.listdir(data_path)
+        if name.lower().endswith(".csv") and os.path.isfile(os.path.join(data_path, name))
     )
     if not files:
-        raise FileNotFoundError(f"在目录 {data_dir} 中未找到 CSV 文件。")
-    if len(files) == 1:
-        return os.path.join(data_dir, files[0])
-    return os.path.join(data_dir, "input.csv" if "input.csv" in files else files[0])
+        raise FileNotFoundError(f"在目录 {data_path} 中未找到 CSV 文件。")
+    if "all_patients.csv" in files:
+        selected = "all_patients.csv"
+    elif len(files) == 1:
+        selected = files[0]
+    elif "input.csv" in files:
+        selected = "input.csv"
+    else:
+        selected = files[0]
+    return os.path.join(data_path, selected)
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -49,15 +89,19 @@ def safe_name(name: str) -> str:
 
 
 def save_json(path: str, data: dict) -> None:
-    with open(path, "w", encoding="utf-8") as f:
+    absolute_path = os.path.abspath(path)
+    parent = os.path.dirname(absolute_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(absolute_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def initialize_knowledge_files(columns: list[str]) -> tuple[dict, dict]:
+def initialize_knowledge_files(columns: list[str], human_path: str, derived_path: str) -> tuple[dict, dict]:
     human = {col: "" for col in columns}
     derived = {col: "" for col in columns}
-    save_json("human_knowledge.json", human)
-    save_json("derived_knowledge.json", derived)
+    save_json(human_path, human)
+    save_json(derived_path, derived)
     return human, derived
 
 
@@ -229,7 +273,8 @@ async def build_cleaner(column: str, values: list[str], profile: dict, human: st
         analysis_prompt = medical_analysis_prompt(column, values, profile, human_advice=human)
         summary = await retry_analysis(analysis_prompt)
 
-    derived = json.load(open(derived_path, "r", encoding="utf-8"))
+    with open(derived_path, "r", encoding="utf-8") as f:
+        derived = json.load(f)
     derived[column] = summary
     save_json(derived_path, derived)
 
@@ -261,7 +306,7 @@ async def build_cleaner(column: str, values: list[str], profile: dict, human: st
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(pkg["cleaner_md"])
 
-        probe_path = csv_path.replace(".csv", f"_probe_{cleaner_name}.csv")
+        probe_path = os.path.join(cleaner_dir, f"probe_{cleaner_name}.csv")
         shutil.copyfile(csv_path, probe_path)
         output_file, run_errors = load_and_run_cleaner(impl_path, probe_path, f"probe_{cleaner_name}_{attempt}")
         for path in [probe_path, output_file]:
@@ -276,14 +321,15 @@ async def build_cleaner(column: str, values: list[str], profile: dict, human: st
     return None, last_errors
 
 
-async def execute_cleaners(csv_path: str, cleaners: dict) -> tuple[str, dict]:
-    current = csv_path
+async def execute_cleaners(csv_path: str, cleaners: dict, cleaner_root: str, output_dir: str) -> tuple[str, dict]:
+    current = os.path.abspath(csv_path)
     failed = {}
     counter = 1
+    source_stem = os.path.splitext(os.path.basename(csv_path))[0]
 
     for column, info in cleaners.items():
         cleaner_name = info["cleaner_name"]
-        impl_path = os.path.join("cleaners", cleaner_name, "implementation.py")
+        impl_path = os.path.join(cleaner_root, cleaner_name, "implementation.py")
         output_file = None
         errors = []
 
@@ -293,7 +339,7 @@ async def execute_cleaners(csv_path: str, cleaners: dict) -> tuple[str, dict]:
                 break
             prompt = build_retry_prompt(column, info["summary"], cleaner_name, info["profile"], errors)
             raw = await call_agent(prompt)
-            with open(os.path.join("cleaners", cleaner_name, f"RUNTIME_REPAIR_attempt_{attempt}.txt"), "w", encoding="utf-8") as f:
+            with open(os.path.join(cleaner_root, cleaner_name, f"RUNTIME_REPAIR_attempt_{attempt}.txt"), "w", encoding="utf-8") as f:
                 f.write(raw)
             try:
                 pkg = parse_cleaner_response(raw)
@@ -303,7 +349,7 @@ async def execute_cleaners(csv_path: str, cleaners: dict) -> tuple[str, dict]:
                     continue
                 with open(impl_path, "w", encoding="utf-8") as f:
                     f.write(pkg["implementation_py"])
-                with open(os.path.join("cleaners", cleaner_name, "CLEANER.md"), "w", encoding="utf-8") as f:
+                with open(os.path.join(cleaner_root, cleaner_name, "CLEANER.md"), "w", encoding="utf-8") as f:
                     f.write(pkg["cleaner_md"])
             except Exception as e:
                 errors = [f"修复 cleaner 失败: {e}"]
@@ -312,7 +358,7 @@ async def execute_cleaners(csv_path: str, cleaners: dict) -> tuple[str, dict]:
             failed[column] = errors
             continue
 
-        target = csv_path.replace(".csv", f"_cleaned_{counter}.csv")
+        target = os.path.join(output_dir, f"{source_stem}_cleaned_{counter}.csv")
         if output_file != target:
             if os.path.exists(target):
                 os.remove(target)
@@ -323,81 +369,178 @@ async def execute_cleaners(csv_path: str, cleaners: dict) -> tuple[str, dict]:
     return current, failed
 
 
-async def main():
-    csv_path = resolve_input_csv("data")
-    cleaner_root = "cleaners"
-    derived_path = "derived_knowledge.json"
-
-    print(f"📄 输入文件: {csv_path}")
-
-    if os.path.exists(cleaner_root):
-        shutil.rmtree(cleaner_root)
-    os.makedirs(cleaner_root, exist_ok=True)
-
-    df = normalize_columns(pd.read_csv(csv_path, dtype=str, keep_default_na=False, na_values=[""]))
-    human_knowledge, _ = initialize_knowledge_files(list(df.columns))
-    print("🧠 已按当前数据集重建 human_knowledge.json")
-    print("🧠 已初始化 derived_knowledge.json")
-
-    cleaners = {}
-    generation_failures = {}
-
-    for column in df.columns:
-        values = sample_values(df[column])
-        if not values:
-            continue
-
-        profile = infer_column_profile(column, values)
-        cleaner_dir = os.path.join(cleaner_root, safe_name(column))
-        os.makedirs(cleaner_dir, exist_ok=True)
-
-        print(f"🔍 处理列: {column}")
-        cleaner_info, errors = await build_cleaner(
-            column,
-            values,
-            profile,
-            human_knowledge.get(column, ""),
-            derived_path,
-            cleaner_dir,
-            csv_path,
+def format_run_summary(result: dict) -> str:
+    if not result.get("success"):
+        return (
+            "Step4: 数据质量检测与自动修复失败。\n"
+            f"输入目录: {result.get('input_dir', '')}\n"
+            f"输入文件: {result.get('input_csv', '')}\n"
+            f"错误: {result.get('error', 'unknown error')}"
         )
-        if cleaner_info is None:
-            generation_failures[column] = errors
-            print(f"  ❌ cleaner 生成失败: {errors}")
-            continue
-        cleaners[column] = cleaner_info
-        print(f"  ✅ cleaner 已生成: {cleaner_info['cleaner_name']}")
 
-    if not cleaners:
-        print("❌ 没有可执行 cleaner，程序退出。")
-        return
+    return "\n".join(
+        [
+            "Step4: 数据质量检测与自动修复完成。",
+            f"输入目录: {result.get('input_dir', '')}",
+            f"输入文件: {result.get('input_csv', '')}",
+            f"清洗结果: {result.get('final_output_csv', '')}",
+            f"质量评分: {result.get('quality_score', 0.0):.2f}",
+            f"验证报告: {result.get('validation_report_path', '')}",
+            f"详细报告: {result.get('detailed_report_path', '')}",
+            f"失败列记录: {result.get('failed_columns_path', '')}",
+            f"成功生成 cleaner 数: {result.get('generated_cleaners', 0)}",
+            f"生成失败列数: {len(result.get('generation_failures', {}))}",
+            f"运行失败列数: {len(result.get('runtime_failures', {}))}",
+        ]
+    )
 
-    final_output, runtime_failures = await execute_cleaners(csv_path, cleaners)
-    print(f"📄 最终输出文件: {final_output}")
 
-    cleaned_df = pd.read_csv(final_output, dtype=str, keep_default_na=False, na_values=[""])
-    validator = DataValidator(cleaned_df, config_path="validation_config.json")
-    report = validator.run_comprehensive_validation()
-    score = validator.generate_quality_score()
-    detail = validator.generate_detailed_report()
+async def run_data_quality_repair(
+    input_dir: str,
+    workspace_dir: str,
+    validation_config_path: str | None = None,
+    verbose: bool = True,
+) -> dict:
+    input_dir = os.path.abspath(input_dir)
+    workspace_dir = os.path.abspath(workspace_dir)
+    validation_config_path = os.path.abspath(validation_config_path or get_default_validation_config_path())
 
-    report_path = final_output.replace(".csv", "_validation_report.json")
-    detail_path = final_output.replace(".csv", "_detailed_report.txt")
-    save_json(report_path, report)
-    with open(detail_path, "w", encoding="utf-8") as f:
-        f.write(detail)
+    cleaner_root = os.path.join(workspace_dir, "cleaners")
+    human_path = os.path.join(workspace_dir, "human_knowledge.json")
+    derived_path = os.path.join(workspace_dir, "derived_knowledge.json")
 
-    failed_columns = {
-        "generation_failures": generation_failures,
-        "runtime_failures": runtime_failures,
+    result = {
+        "success": False,
+        "input_dir": input_dir,
+        "input_csv": "",
+        "workspace_dir": workspace_dir,
+        "final_output_csv": "",
+        "validation_report_path": "",
+        "detailed_report_path": "",
+        "failed_columns_path": "",
+        "quality_score": None,
+        "generated_cleaners": 0,
+        "generation_failures": {},
+        "runtime_failures": {},
+        "error": "",
     }
-    save_json(final_output.replace(".csv", "_failed_columns.json"), failed_columns)
 
-    print(f"📈 质量评分: {score:.2f}")
-    print(f"📋 验证报告: {report_path}")
-    print(f"📄 详细报告: {detail_path}")
-    if generation_failures or runtime_failures:
-        print("⚠️ 存在失败列，已写入 failed_columns.json")
+    try:
+        os.makedirs(workspace_dir, exist_ok=True)
+        csv_path = resolve_input_csv(input_dir)
+        result["input_csv"] = csv_path
+
+        if verbose:
+            print(f"📄 输入文件: {csv_path}")
+
+        with temporary_working_directory(workspace_dir):
+            if os.path.exists(cleaner_root):
+                shutil.rmtree(cleaner_root)
+            os.makedirs(cleaner_root, exist_ok=True)
+
+            df = normalize_columns(pd.read_csv(csv_path, dtype=str, keep_default_na=False, na_values=[""]))
+            human_knowledge, _ = initialize_knowledge_files(list(df.columns), human_path, derived_path)
+            if verbose:
+                print("🧠 已按当前数据集重建 human_knowledge.json")
+                print("🧠 已初始化 derived_knowledge.json")
+
+            cleaners = {}
+            generation_failures = {}
+
+            for column in df.columns:
+                values = sample_values(df[column])
+                if not values:
+                    continue
+
+                profile = infer_column_profile(column, values)
+                cleaner_dir = os.path.join(cleaner_root, safe_name(column))
+                os.makedirs(cleaner_dir, exist_ok=True)
+
+                if verbose:
+                    print(f"🔍 处理列: {column}")
+                cleaner_info, errors = await build_cleaner(
+                    column,
+                    values,
+                    profile,
+                    human_knowledge.get(column, ""),
+                    derived_path,
+                    cleaner_dir,
+                    csv_path,
+                )
+                if cleaner_info is None:
+                    generation_failures[column] = errors
+                    if verbose:
+                        print(f"  ❌ cleaner 生成失败: {errors}")
+                    continue
+                cleaners[column] = cleaner_info
+                if verbose:
+                    print(f"  ✅ cleaner 已生成: {cleaner_info['cleaner_name']}")
+
+            result["generated_cleaners"] = len(cleaners)
+            result["generation_failures"] = generation_failures
+
+            if not cleaners:
+                result["error"] = "没有可执行 cleaner，程序退出。"
+                return result
+
+            final_output, runtime_failures = await execute_cleaners(
+                csv_path=csv_path,
+                cleaners=cleaners,
+                cleaner_root=cleaner_root,
+                output_dir=workspace_dir,
+            )
+            result["final_output_csv"] = final_output
+            result["runtime_failures"] = runtime_failures
+            if verbose:
+                print(f"📄 最终输出文件: {final_output}")
+
+            cleaned_df = pd.read_csv(final_output, dtype=str, keep_default_na=False, na_values=[""])
+            validator = DataValidator(cleaned_df, config_path=validation_config_path)
+            report = validator.run_comprehensive_validation()
+            score = validator.generate_quality_score()
+            detail = validator.generate_detailed_report()
+
+            report_path = final_output.replace(".csv", "_validation_report.json")
+            detail_path = final_output.replace(".csv", "_detailed_report.txt")
+            failed_columns_path = final_output.replace(".csv", "_failed_columns.json")
+            save_json(report_path, report)
+            with open(detail_path, "w", encoding="utf-8") as f:
+                f.write(detail)
+
+            failed_columns = {
+                "generation_failures": generation_failures,
+                "runtime_failures": runtime_failures,
+            }
+            save_json(failed_columns_path, failed_columns)
+
+            result["validation_report_path"] = report_path
+            result["detailed_report_path"] = detail_path
+            result["failed_columns_path"] = failed_columns_path
+            result["quality_score"] = score
+            result["success"] = True
+
+            if verbose:
+                print(f"📈 质量评分: {score:.2f}")
+                print(f"📋 验证报告: {report_path}")
+                print(f"📄 详细报告: {detail_path}")
+                if generation_failures or runtime_failures:
+                    print("⚠️ 存在失败列，已写入 failed_columns.json")
+
+        return result
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+
+
+async def main():
+    module_dir = get_module_dir()
+    result = await run_data_quality_repair(
+        input_dir=os.path.join(module_dir, "data"),
+        workspace_dir=module_dir,
+        validation_config_path=os.path.join(module_dir, "validation_config.json"),
+        verbose=True,
+    )
+    print(format_run_summary(result))
 
 
 if __name__ == "__main__":

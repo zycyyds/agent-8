@@ -174,12 +174,14 @@ class ACECurator:
         model_name: str,
         temperature: float,
         seed: int,
+        enable_thinking: bool | None = False,
         model_cls=OllamaChatModel,
         model_factory: Callable[[], Any] | None = None,
     ):
         self.model_name = model_name
         self.temperature = temperature
         self.seed = seed
+        self.enable_thinking = enable_thinking
         self.model_cls = model_cls
         self.model_factory = model_factory
 
@@ -188,6 +190,7 @@ class ACECurator:
             return self.model_factory()
         return self.model_cls(
             model_name=self.model_name,
+            enable_thinking=self.enable_thinking,
             options={
                 "temperature": self.temperature,
                 "seed": self.seed,
@@ -209,15 +212,42 @@ class ACECurator:
         current_playbook, _, _ = manager.format_playbook(query_text=input_text, max_bullets=30)
         reflection_text = json.dumps(reflection.to_dict(), ensure_ascii=False, indent=2)
         sections_text = ", ".join(SECTION_ORDER)
-        prompt = f"""你是 ACE 框架中的 Curator。你的职责是把最近一次 reflection 转成增量 playbook 更新。
-你不能重写整个 playbook，只能提出缺失的新条目。
+        prompt = f"""你是 ACE 框架中的 Curator。你的职责是把最近一次 reflection、任务输入、最终输出摘要，以及当前 playbook 上下文，转成可追加的增量规则集合。
+你不能重写整个 playbook，也不能泛泛总结本轮任务；你只能提出未来还能复用、且当前 playbook 中缺失的新条目。
 
-要求：
-1. 只输出新的增量操作，不要重复已有条目。
+你的目标不是“写一条总结”，而是“沉淀一组以后能直接指导执行的策略”。
+如果证据支持，本轮可以新增多条策略，不必限制为一条；只有当完整 trace 里确实只稳定支持一个结论时，才只输出一条。
+
+硬性要求：
+1. 只输出新的增量操作，不要重复已有条目，不要改写已有条目。
 2. 只允许 `ADD` 操作。
 3. `section` 只能从以下集合中选择：{sections_text}
-4. `content` 必须使用中文，且要短小、可执行、适合长期复用，不能是总结、统计或路径清单。
-5. 输出必须是 JSON，不要附带 markdown。
+4. `content` 必须使用中文。
+5. 每条 `content` 必须是原子化、命令式、可执行、可长期复用的规则，最好同时包含“触发条件/场景”与“应该怎么做”。
+6. 每条规则必须尽量具体，能直接指导下一次执行；不要写成空泛口号。
+7. 一次可以输出多条策略。通常输出 1-5 条；如果证据非常充分，也可以更多，但不要为了凑数硬拆。
+8. 多条策略之间不要重复、不要同义改写、不要只是在措辞上轻微变化。
+9. 不要输出总结、统计、路径清单、文件名清单、病例事实复述、一次性数值结论。
+10. 不要直接照抄 reflection 原文；要把它提炼成未来任务可复用的策略。
+11. 如果当前 playbook 已经有语义高度相近的规则，就不要再新增。
+12. 输出必须是 JSON，不要附带 markdown、解释段落或代码块。
+
+优先提炼什么：
+- 工具调用顺序与依赖关系
+- 工具输入约束、边界条件、前置检查
+- 工具返回结果的校验方式
+- 面向用户输出时必须遵守的输出契约
+- 多模态/多文件场景下的路由、汇总、验证规则
+- 明确可复用的失败模式与纠正动作
+
+什么样的规则是好的：
+- 好："当工具返回的是结构化字段时，最终结论必须只引用已返回字段，不得补写 trace 中不存在的统计项。"
+- 好："当目录同时包含图片与表格时，先按主处理链完成图片/文本抽取，再把表格结果作为补充证据合并，避免把辅助文件误当主输入。"
+- 好："当交互式步骤尚未结束时，不要提前生成整轮总结；应等用户输入 quit 后再输出会话摘要。"
+- 不好："这次做得还可以。"
+- 不好："需要更认真检查数据。"
+- 不好："本次处理了 3 个文件，结果正常。"
+- 不好："输出目录是 /path/to/output。"
 
 任务上下文：
 输入: {input_text}
@@ -234,14 +264,25 @@ Current Playbook:
 
 输出格式：
 {{
-  "reasoning": "为什么需要这些增量",
+  "reasoning": "为什么需要这些增量，以及为什么这些规则在未来可复用",
   "operations": [
     {{
       "type": "ADD",
-      "section": "validation_checklist",
-      "content": "新增经验"
+      "section": "tool_usage",
+      "content": "新增规则1"
+    }},
+    {{
+      "type": "ADD",
+      "section": "output_contracts",
+      "content": "新增规则2"
     }}
   ]
+}}
+
+如果没有任何真正新增且可复用的规则，请输出：
+{{
+  "reasoning": "当前 reflection 未提供可安全新增的规则，或当前 playbook 已覆盖相同经验。",
+  "operations": []
 }}
 """
 

@@ -325,6 +325,57 @@ def _build_trace_evidence_summary(trace_data: dict[str, Any]) -> str:
     return "\n".join(lines).strip()
 
 
+def _build_reflector_model_trace(trace_data: dict[str, Any]) -> dict[str, Any]:
+    compact_steps: list[dict[str, Any]] = []
+    for step in trace_data.get("steps", []):
+        assistant_outputs = [
+            _preview_text(item, 280)
+            for item in step.get("assistant_outputs", [])[:2]
+            if str(item).strip()
+        ]
+        compact_events: list[dict[str, Any]] = []
+        for event in step.get("tool_events", [])[:6]:
+            if not isinstance(event, dict):
+                continue
+            compact_events.append(
+                {
+                    "tool_name": str(event.get("tool_name") or ""),
+                    "status": str(event.get("status") or ""),
+                    "tool_input": _preview_text(event.get("tool_input") or "", 180),
+                    "tool_output": _preview_text(event.get("tool_output") or "", 220),
+                    "error": _preview_text(event.get("error") or "", 180),
+                }
+            )
+
+        compact_steps.append(
+            {
+                "step_name": str(step.get("step_name") or ""),
+                "input_data": _preview_text(step.get("input_data") or "", 180),
+                "assistant_outputs": assistant_outputs,
+                "tool_events": compact_events,
+                "final_output": _preview_text(step.get("final_output") or "", 360),
+            }
+        )
+
+    return {
+        "input_text": _preview_text(trace_data.get("input_text") or "", 300),
+        "duration_seconds": float(trace_data.get("duration_seconds") or 0.0),
+        "success": bool(trace_data.get("success", True)),
+        "orchestrator_summary": _preview_text(trace_data.get("orchestrator_summary") or "", 400),
+        "retrieved_bullet_ids": [
+            str(item)
+            for item in trace_data.get("retrieved_bullet_ids", [])[:20]
+            if str(item).strip()
+        ],
+        "failure_signals": [
+            _preview_text(item, 220)
+            for item in trace_data.get("failure_signals", [])[:10]
+            if str(item).strip()
+        ],
+        "steps": compact_steps,
+    }
+
+
 def _collect_trace_tool_names(trace_data: dict[str, Any]) -> list[str]:
     names: list[str] = []
     seen: set[str] = set()
@@ -339,11 +390,28 @@ def _collect_trace_tool_names(trace_data: dict[str, Any]) -> list[str]:
 
 def _extract_reflector_payload(response: Any) -> tuple[dict[str, Any], str, str]:
     metadata = getattr(response, "metadata", None)
-    if isinstance(metadata, dict) and metadata:
-        return dict(metadata), json.dumps(metadata, ensure_ascii=False, indent=2), "metadata"
+    metadata_dict = dict(metadata) if isinstance(metadata, dict) else {}
+    metadata_key_insight = str(metadata_dict.get("key_insight") or "").strip()
+    metadata_analysis = str(metadata_dict.get("analysis") or metadata_dict.get("reasoning") or "").strip()
+    metadata_bullet_tags = metadata_dict.get("bullet_tags") if isinstance(metadata_dict.get("bullet_tags"), list) else []
+    metadata_has_signal = bool(metadata_key_insight or metadata_analysis or metadata_bullet_tags)
 
     model_text = _stringify_model_content(response.content if hasattr(response, "content") else response)
-    return _extract_json_object(model_text), model_text, "content"
+    content_payload = _extract_json_object(model_text)
+    content_key_insight = str(content_payload.get("key_insight") or "").strip()
+    content_analysis = str(content_payload.get("analysis") or content_payload.get("reasoning") or "").strip()
+    content_bullet_tags = content_payload.get("bullet_tags") if isinstance(content_payload.get("bullet_tags"), list) else []
+    content_has_signal = bool(content_key_insight or content_analysis or content_bullet_tags)
+
+    if content_has_signal:
+        return content_payload, model_text, "content"
+    if metadata_has_signal:
+        return metadata_dict, json.dumps(metadata_dict, ensure_ascii=False, indent=2), "metadata"
+    if model_text.strip():
+        return content_payload, model_text, "content"
+    if metadata_dict:
+        return metadata_dict, json.dumps(metadata_dict, ensure_ascii=False, indent=2), "metadata"
+    return content_payload, model_text, "content"
 
 
 def _default_reasoning(parsed: dict[str, Any], key_insight: str) -> str:
@@ -431,12 +499,14 @@ class ACEReflector:
         model_name: str,
         temperature: float,
         seed: int,
+        enable_thinking: bool | None = False,
         model_cls=OllamaChatModel,
         model_factory: Callable[[], Any] | None = None,
     ):
         self.model_name = model_name
         self.temperature = temperature
         self.seed = seed
+        self.enable_thinking = enable_thinking
         self.model_cls = model_cls
         self.model_factory = model_factory
         self.last_debug_artifact: dict[str, str] | None = None
@@ -446,6 +516,7 @@ class ACEReflector:
             return self.model_factory()
         return self.model_cls(
             model_name=self.model_name,
+            enable_thinking=self.enable_thinking,
             options={
                 "temperature": self.temperature,
                 "seed": self.seed,
@@ -469,25 +540,39 @@ class ACEReflector:
         evidence_summary = _build_trace_evidence_summary(trace_data)
         trace_tool_names = _collect_trace_tool_names(trace_data)
         trace_tools_text = "、".join(trace_tool_names) if trace_tool_names else "无"
-        full_input_json = json.dumps(trace_data, ensure_ascii=False, indent=2)
+        model_trace = _build_reflector_model_trace(trace_data)
+        full_input_json = json.dumps(model_trace, ensure_ascii=False, indent=2)
         repair_attempts: list[dict[str, Any]] = []
 
-        prompt = f"""你是 ACE 框架中的 Reflector，负责诊断一次执行轨迹为什么成功或失败。
-你只做反思，不负责直接改写 playbook。
-输入已经是预结构化 trace，请严格基于证据输出 JSON。
+        prompt = f"""你是 ACE 框架中的 Reflector，负责阅读一次执行轨迹，并从证据中提炼出最值得被记住的 insight。
+你只做反思，不负责直接改写 playbook。输入已经是预结构化 trace，请严格基于证据输出 JSON。
 
 要求：
-1. 只基于证据判断 bullet 是 helpful / harmful / neutral。
-2. `key_insight` 必须是单条、命令式、可长期复用的规则。
-3. 所有字符串字段必须使用中文，不要输出英文规则，不要举与当前任务无关的通用 JSON 示例。
-4. 优先输出“工具使用策略”，也就是工具调用顺序、工具输入约束、工具输出校验、调用后下一步动作。
-5. 只有当证据明显表明这是业务规则或验证规则时，才优先选择 `validation_checklist`、`modality_rules`、`data_organization` 等其他 section。
-6. 如果工具链已经很清楚，`key_insight_section` 优先填写 `tool_usage`。
-7. 为了提高稳定性，你只需要输出最小必需字段，不要补充多余字段。
-8. 只输出 JSON，不要附带 markdown。
-9. 结构化轨迹摘要只用于导航，不是主证据；你的主要依据必须是完整 step trace JSON。
-10. 如摘要与完整 step trace 冲突，以完整 step trace 为准。
-11. 请优先依据每个 step 的 `assistant_outputs`、`tool_events`、`final_output` 提炼 insight，不要把 `thinking` 当作主要证据。
+1. 只基于证据判断 bullet 是 helpful / harmful / neutral，不要臆测未在 trace 中出现的事实。
+2. `key_insight` 是你从本轮 trace 中提炼出的核心 insight。它可以是一条经验、一条约束、一条失败模式、一条输出契约、一条验证要求，或一条你认为未来最值得复用的观察；不要把它限制死在某一种写法里。
+3. `key_insight` 不要求必须是某种固定句式；可以更偏规则，也可以更偏经验，但必须对未来任务有帮助，且不能只是空泛感想。
+4. 不要因为担心抽象过度就只复述病例事实；也不要因为追求抽象就写成任何场景都适用的空话。
+5. 所有字符串字段必须使用中文，不要输出英文规则，不要举与当前任务无关的通用 JSON 示例。
+6. 结构化轨迹摘要只用于导航，不是主证据；你的主要依据必须是下方给出的高价值证据版 step trace JSON。
+7. 如摘要与高价值证据版 step trace 冲突，以高价值证据版 step trace 为准。
+8. 请优先依据每个 step 的 `assistant_outputs`、`tool_events`、`final_output` 提炼 insight，不要把 `thinking` 当作主要证据。
+9. 你可以先进行极简分析，但最后必须给出一个合法 JSON 对象，供系统提取。
+10. 不要输出 markdown 代码块；如果你先写分析，最后一段必须是完整 JSON。
+
+你可以关注但不必受限于这些方向：
+- 工具调用顺序、漏调、重复调、错调
+- 工具输入参数与边界条件
+- 工具输出校验与最终总结之间是否一致
+- 多 step 依赖是否被破坏
+- 交互式步骤的进入、退出、总结时机
+- 多模态/多文件输入的路由与合并
+- 哪些已有 playbook 条目在本轮真正有帮助，哪些没有帮助甚至误导
+
+什么样的 `key_insight` 更有价值：
+- 能解释这轮为什么成功/失败
+- 能帮助下一轮避免重复犯错
+- 能约束后续输出或工具使用
+- 能在相似任务中复用
 
 结构化轨迹摘要（仅用于导航，不是主证据）：
 {evidence_summary}
@@ -495,30 +580,27 @@ class ACEReflector:
 本次 trace 中出现的工具：
 {trace_tools_text}
 
-完整 step trace（主证据，包含前序 step 的 assistant 可见输出、工具使用与工具返回）：
+高价值证据版 step trace（主证据，已从完整 trace 中提炼出与反思最相关的字段）：
 {full_input_json}
 
 Generator 使用过的 playbook 条目：
 {playbook_text}
 
-请输出最小 JSON：
+请按下面方式作答：
+1. 可以先写 1-4 句简短分析，帮助你自己明确证据与结论。
+2. 最后一段必须给出一个合法 JSON 对象，字段如下：
 {{
-  "analysis": "可选，一句简短说明；如果拿不准可以留空",
-  "key_insight": "应被长期记住的一条经验",
+  "analysis": "一句简短分析，说明你为什么提炼出这条 insight；如果证据不足也可直接说明",
+  "key_insight": "本轮最值得记住的 insight",
   "key_insight_section": "validation_checklist|tool_usage|output_contracts|failure_patterns|strategies_and_hard_rules|modality_rules|data_organization|domain_heuristics",
   "bullet_tags": [
     {{"id": "bullet_id", "tag": "helpful|harmful|neutral"}}
   ]
 }}
+3. 如果拿不准，也不要返回全空对象；至少在 `analysis` 中说明为什么拿不准，并尽量给出最接近证据的一条 `key_insight`。
 """
 
-        try:
-            response = model(
-                [{"role": "user", "content": prompt}],
-                structured_model=_ReflectorStructuredOutputModel,
-            )
-        except TypeError:
-            response = model([{"role": "user", "content": prompt}])
+        response = model([{"role": "user", "content": prompt}])
         if asyncio.iscoroutine(response):
             response = await response
 

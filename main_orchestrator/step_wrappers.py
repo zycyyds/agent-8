@@ -15,11 +15,54 @@ from agentscope.tool import ToolResponse
 from agent_1.agentscope_tool_loader import load_toolkit_from_config
 from memory_agent.config import config
 from memory_agent.memory_tool import get_playbook_context_data
+from memory_supervisor import report_pipeline_result
 
 
 _CONTEXT_PREVIEW_LIMIT = 300
 _MESSAGE_TEXT_LIMIT = 1500
 _TOOL_OUTPUT_LIMIT = 2000
+
+
+class ThinkingSafeOllamaChatFormatter(OllamaChatFormatter):
+    """在送入 Ollama formatter 前过滤 thinking block，避免告警日志。"""
+
+    async def _format(self, msgs: list[Msg]) -> list[dict]:
+        sanitized_msgs = [_strip_thinking_from_msg(msg) for msg in msgs]
+        return await super()._format(sanitized_msgs)
+
+
+def _strip_thinking_from_msg(msg: Msg) -> Msg:
+    content = getattr(msg, "content", None)
+    if not isinstance(content, list):
+        return msg
+    content_blocks = [
+        block
+        for block in msg.get_content_blocks()
+        if str(block.get("type") or "") != "thinking"
+    ]
+    sanitized_msg = Msg(
+        name=msg.name,
+        content=content_blocks,
+        role=msg.role,
+        metadata=msg.metadata,
+        timestamp=msg.timestamp,
+        invocation_id=msg.invocation_id,
+    )
+    # Preserve the original message id so streaming console output can append
+    # deltas instead of printing the full accumulated message repeatedly.
+    sanitized_msg.id = msg.id
+    return sanitized_msg
+
+
+def register_no_thinking_print_hook(agent: ReActAgent) -> ReActAgent:
+    def _hook(_agent: ReActAgent, kwargs: dict[str, Any]) -> dict[str, Any] | None:
+        msg = kwargs.get("msg")
+        if isinstance(msg, Msg):
+            kwargs["msg"] = _strip_thinking_from_msg(msg)
+        return kwargs
+
+    agent.register_instance_hook("pre_print", "strip_thinking_for_console", _hook)
+    return agent
 
 
 def _truncate_text(value: Any, limit: int) -> tuple[str, bool]:
@@ -212,13 +255,7 @@ def _normalize_content_blocks(content: Any, truncate: bool = True) -> tuple[list
             if was_truncated:
                 truncated_flags.append(f"text_{idx}")
         elif block_type == "thinking":
-            thinking = str(block.get("thinking", ""))
-            was_truncated = False
-            if truncate:
-                thinking, was_truncated = _truncate_text(block.get("thinking", ""), _MESSAGE_TEXT_LIMIT)
-            item["thinking"] = thinking
-            if was_truncated:
-                truncated_flags.append(f"thinking_{idx}")
+            continue
         elif block_type == "tool_use":
             item["id"] = str(block.get("id", ""))
             item["name"] = str(block.get("name", ""))
@@ -314,7 +351,7 @@ def _format_message_blocks(content: Any) -> str:
             if isinstance(block, dict):
                 block_type = block.get("type")
                 if block_type == "thinking":
-                    text_parts.append(f"[Thinking]\n{block.get('thinking', '')}\n[/Thinking]")
+                    continue
                 elif block_type == "text":
                     text_parts.append(block.get("text", ""))
                 elif block_type == "tool_use":
@@ -430,20 +467,6 @@ class PipelineTraceCollector:
                     ctx_preview += "..."
                 parts.append(f"上下文: {ctx_preview}")
 
-            chain = step.get("thinking_chain", [])
-            if chain:
-                parts.append(f"\n--- 完整推理链 ({len(chain)} 条消息) ---")
-                for j, msg_item in enumerate(chain, 1):
-                    role = msg_item.get("role", "?")
-                    name = msg_item.get("name", "")
-                    content = msg_item.get("content", "")
-                    if not full and role == "system" and len(content) > 1000:
-                        content = content[:1000] + "...(truncated)"
-                    elif not full and role == "assistant" and len(content) > 3000:
-                        content = content[:3000] + "...(truncated)"
-                    parts.append(f"  [{j}] {name}({role}): {content}")
-                parts.append("--- 推理链结束 ---\n")
-
             parts.append(f"最终输出:\n{step['output_content']}")
             parts.append("")
         return "\n".join(parts)
@@ -462,6 +485,45 @@ def get_trace_collector() -> PipelineTraceCollector:
     return _trace_collector
 
 
+def build_single_step_trace_payload(
+    step_index: int,
+    input_text: str,
+    duration_seconds: float,
+    orchestrator_summary: str,
+    retrieved_bullet_ids: list[str] | None = None,
+) -> dict[str, Any] | None:
+    if not _trace_collector.steps or abs(step_index) > len(_trace_collector.steps):
+        return None
+    step = _trace_collector.steps[step_index]
+    collector_cls = type(_trace_collector)
+    temp_collector = collector_cls()
+    temp_collector.steps = [step]
+    return temp_collector.build_trace_payload(
+        input_text=input_text,
+        duration_seconds=duration_seconds,
+        orchestrator_summary=orchestrator_summary,
+        retrieved_bullet_ids=retrieved_bullet_ids or [],
+    )
+
+
+async def report_last_step_reflection(
+    input_text: str,
+    duration_seconds: float,
+    orchestrator_summary: str,
+    retrieved_bullet_ids: list[str] | None = None,
+) -> str | None:
+    payload = build_single_step_trace_payload(
+        step_index=-1,
+        input_text=input_text,
+        duration_seconds=duration_seconds,
+        orchestrator_summary=orchestrator_summary,
+        retrieved_bullet_ids=retrieved_bullet_ids,
+    )
+    if not payload:
+        return None
+    return await report_pipeline_result(payload, used_bullet_ids=retrieved_bullet_ids)
+
+
 def _get_project_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -476,6 +538,24 @@ def _get_default_step2_3_input_path(input_data: str) -> str:
     return os.path.join(_get_program_output_root(), "data")
 
 
+def _get_default_step4_input_path(input_data: str) -> str:
+    if input_data and os.path.isdir(str(input_data)):
+        return str(input_data)
+
+    step2_3_root = os.path.join(_get_program_output_root(), "step2_3_results")
+    if os.path.isdir(step2_3_root):
+        result_dirs = [
+            os.path.join(step2_3_root, name)
+            for name in os.listdir(step2_3_root)
+            if name.startswith("results_") and os.path.isdir(os.path.join(step2_3_root, name))
+        ]
+        if result_dirs:
+            result_dirs.sort(key=os.path.getmtime, reverse=True)
+            return result_dirs[0]
+
+    return os.path.join(_get_program_output_root(), "data")
+
+
 def _load_step1_5_cleaner_components():
     cleaner_root = os.path.join(
         _get_project_root(),
@@ -487,12 +567,84 @@ def _load_step1_5_cleaner_components():
 
     main_module = importlib.import_module("main")
     agent_module = importlib.import_module("agents.unified_processing_agent")
-    return main_module.process_single_input, agent_module.UnifiedProcessingAgent
+    return main_module.process_single_input, main_module.run_interactive_session, agent_module.UnifiedProcessingAgent
+
+
+def _summarize_step2_3_event(event: dict[str, Any]) -> str:
+    pieces = [f"event={event.get('event', 'unknown')}"]
+    if event.get("mode"):
+        pieces.append(f"mode={event['mode']}")
+    if event.get("target"):
+        pieces.append(f"target={event['target']}")
+    elif event.get("input"):
+        pieces.append(f"input={event['input']}")
+    if event.get("data_type"):
+        pieces.append(f"data_type={event['data_type']}")
+    if event.get("error"):
+        pieces.append(f"error={event['error']}")
+    return " | ".join(str(item) for item in pieces if str(item).strip())
+
+
+def _build_step2_3_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    assistant_outputs: list[dict[str, Any]] = []
+    tool_events: list[dict[str, Any]] = []
+    for index, event in enumerate(result.get("session_events", []), 1):
+        if not isinstance(event, dict):
+            continue
+        assistant_outputs.append(
+            {
+                "role": "assistant",
+                "name": f"step2_3_session_{index}",
+                "content_blocks": [{"type": "text", "text": _summarize_step2_3_event(event)}],
+            }
+        )
+        event_name = str(event.get("event") or "session_event")
+        event_target = str(event.get("target") or event.get("input") or "")
+        event_output_parts = []
+        if event.get("data_type"):
+            event_output_parts.append(f"data_type={event['data_type']}")
+        if event.get("statistics"):
+            event_output_parts.append(json.dumps(event["statistics"], ensure_ascii=False))
+        if event.get("stats"):
+            event_output_parts.append(json.dumps(event["stats"], ensure_ascii=False))
+        if event.get("output_file"):
+            event_output_parts.append(f"output_file={event['output_file']}")
+        if event.get("error"):
+            event_output_parts.append(f"error={event['error']}")
+        tool_events.append(
+            {
+                "tool_name": f"step2_3_{event_name}",
+                "tool_input": {"input": event_target, "mode": event.get("mode")},
+                "tool_output": " | ".join(part for part in event_output_parts if part),
+                "status": "succeeded" if event.get("success", False) else "failed",
+                "error": str(event.get("error") or ""),
+            }
+        )
+    return assistant_outputs, tool_events
 
 
 def _build_step2_3_summary(data_dir: str, result: dict[str, Any]) -> str:
     if not result:
         return f"Step2_3: 未返回结果。输入目录: {data_dir}"
+
+    if "quit_reason" in result:
+        lines = [
+            "Step2_3: 医学数据清洗与标准化交互会话结束。",
+            f"输入目录: {data_dir}",
+            f"退出方式: {result.get('quit_reason', 'unknown')}",
+            f"处理轮次: {result.get('processed_inputs', 0)}",
+            f"成功次数: {result.get('success_count', 0)}",
+            f"失败次数: {result.get('failure_count', 0)}",
+            f"切换分析模式次数: {result.get('analyze_requests', 0)}",
+            f"查看统计次数: {result.get('stats_requests', 0)}",
+        ]
+        if result.get("last_input"):
+            lines.append(f"最后一次输入: {result['last_input']}")
+        if result.get("output_dir"):
+            lines.append(f"输出目录: {result['output_dir']}")
+        if result.get("last_error"):
+            lines.append(f"最后错误: {result['last_error']}")
+        return "\n".join(lines)
 
     if not result.get("success"):
         return (
@@ -541,6 +693,99 @@ def _build_step2_3_summary(data_dir: str, result: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _build_step4_summary(input_dir: str, result: dict[str, Any]) -> str:
+    if not result:
+        return f"Step4: 未返回结果。输入目录: {input_dir}"
+
+    if not result.get("success"):
+        return (
+            f"Step4: 数据质量检测与自动修复失败。\n"
+            f"输入目录: {input_dir}\n"
+            f"输入文件: {result.get('input_csv', '')}\n"
+            f"错误: {result.get('error', 'unknown error')}"
+        )
+
+    lines = [
+        "Step4: 数据质量检测与自动修复完成。",
+        f"输入目录: {input_dir}",
+        f"输入文件: {result.get('input_csv', '')}",
+        f"清洗结果: {result.get('final_output_csv', '')}",
+        f"质量评分: {float(result.get('quality_score') or 0.0):.2f}",
+        f"验证报告: {result.get('validation_report_path', '')}",
+        f"详细报告: {result.get('detailed_report_path', '')}",
+        f"失败列记录: {result.get('failed_columns_path', '')}",
+        f"成功生成 cleaner 数: {result.get('generated_cleaners', 0)}",
+        f"生成失败列数: {len(result.get('generation_failures', {}) or {})}",
+        f"运行失败列数: {len(result.get('runtime_failures', {}) or {})}",
+    ]
+    return "\n".join(lines)
+
+
+def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    input_dir = str(result.get("input_dir") or "")
+    input_csv = str(result.get("input_csv") or "")
+    final_output_csv = str(result.get("final_output_csv") or "")
+    quality_score = result.get("quality_score")
+    generation_failures = result.get("generation_failures") or {}
+    runtime_failures = result.get("runtime_failures") or {}
+    summary_text = (
+        f"input_dir={input_dir} | input_csv={input_csv} | final_output_csv={final_output_csv} | "
+        f"quality_score={quality_score} | generated_cleaners={result.get('generated_cleaners', 0)} | "
+        f"generation_failures={len(generation_failures)} | runtime_failures={len(runtime_failures)}"
+    )
+    assistant_outputs = [
+        {
+            "role": "assistant",
+            "name": "step4_runner",
+            "content_blocks": [{"type": "text", "text": summary_text}],
+        }
+    ]
+    tool_events = [
+        {
+            "tool_name": "step4_resolve_input_csv",
+            "tool_input": {"input_dir": input_dir},
+            "tool_output": f"input_csv={input_csv}",
+            "status": "succeeded" if input_csv else "failed",
+            "error": "" if input_csv else str(result.get('error') or "未找到输入 CSV"),
+        },
+        {
+            "tool_name": "step4_generate_cleaners",
+            "tool_input": {"input_csv": input_csv},
+            "tool_output": (
+                f"generated_cleaners={result.get('generated_cleaners', 0)} | "
+                f"generation_failures={len(generation_failures)}"
+            ),
+            "status": "succeeded" if result.get("generated_cleaners", 0) > 0 else "failed",
+            "error": "" if result.get("generated_cleaners", 0) > 0 else str(result.get('error') or "未生成可执行 cleaner"),
+        },
+        {
+            "tool_name": "step4_execute_cleaners",
+            "tool_input": {"input_csv": input_csv},
+            "tool_output": f"final_output_csv={final_output_csv} | runtime_failures={len(runtime_failures)}",
+            "status": "succeeded" if final_output_csv else "failed",
+            "error": "" if final_output_csv else str(result.get('error') or "未生成清洗结果 CSV"),
+        },
+        {
+            "tool_name": "step4_run_validation",
+            "tool_input": {"final_output_csv": final_output_csv},
+            "tool_output": (
+                f"quality_score={quality_score} | validation_report={result.get('validation_report_path', '')} | "
+                f"detailed_report={result.get('detailed_report_path', '')}"
+            ),
+            "status": "succeeded" if result.get("validation_report_path") else "failed",
+            "error": "" if result.get("validation_report_path") else str(result.get('error') or "未生成验证报告"),
+        },
+        {
+            "tool_name": "step4_write_reports",
+            "tool_input": {"workspace_dir": result.get("workspace_dir", "")},
+            "tool_output": f"failed_columns={result.get('failed_columns_path', '')}",
+            "status": "succeeded" if result.get("failed_columns_path") else "failed",
+            "error": "" if result.get("failed_columns_path") else str(result.get('error') or "未写入失败列记录"),
+        },
+    ]
+    return assistant_outputs, tool_events
+
+
 async def run_step1_modal_recognition(input_data: str, context: str = "") -> ToolResponse:
     toolkit_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -575,7 +820,7 @@ async def run_step1_modal_recognition(input_data: str, context: str = "") -> Too
         name="Agent-1-Modal-Identification",
         sys_prompt=full_sys_prompt,
         model=model,
-        formatter=OllamaChatFormatter(),
+        formatter=ThinkingSafeOllamaChatFormatter(),
         toolkit=toolkit,
         memory=InMemoryMemory(),
         max_iters=20,
@@ -631,7 +876,7 @@ async def run_step1_modal_recognition(input_data: str, context: str = "") -> Too
     if fallback_event:
         fallback_note = "检测到模型未真正执行 `Organize Dataset By Modality`，包装层已按固定流程补跑数据整理。"
         assistant_blocks = [
-            {"type": "thinking", "thinking": fallback_note},
+            {"type": "text", "text": fallback_note},
             {
                 "type": "tool_use",
                 "id": fallback_event["event_id"],
@@ -698,6 +943,14 @@ async def run_step1_modal_recognition(input_data: str, context: str = "") -> Too
         full_tool_events=full_tool_events,
         truncated_flags=truncated_flags,
     )
+    memory_feedback = await report_last_step_reflection(
+        input_text=input_data,
+        duration_seconds=0.0,
+        orchestrator_summary=output_str,
+        retrieved_bullet_ids=[],
+    )
+    if memory_feedback:
+        print(f"\n[Memory Supervisor Step1 反思结果]\n{memory_feedback}\n")
 
     return ToolResponse(content=output_str)
 
@@ -727,25 +980,57 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
             output_content=output,
             context=context,
         )
+        memory_feedback = await report_last_step_reflection(
+            input_text=data_dir,
+            duration_seconds=0.0,
+            orchestrator_summary=output,
+            retrieved_bullet_ids=[],
+        )
+        if memory_feedback:
+            print(f"\n[Memory Supervisor Step2_3 反思结果]\n{memory_feedback}\n")
         return ToolResponse(content=output)
 
+    if not sys.stdin or not sys.stdin.isatty():
+        output = (
+            "Step2_3: 当前环境不支持交互式医学数据清洗。\n"
+            f"输入目录: {data_dir}\n"
+            "原因: 标准输入不是交互终端（non-TTY）。"
+        )
+        _trace_collector.record_step(
+            step_name="Step2_3 医学数据清洗与标准化",
+            input_data=data_dir,
+            output_content=output,
+            context=context,
+        )
+        memory_feedback = await report_last_step_reflection(
+            input_text=data_dir,
+            duration_seconds=0.0,
+            orchestrator_summary=output,
+            retrieved_bullet_ids=[],
+        )
+        if memory_feedback:
+            print(f"\n[Memory Supervisor Step2_3 反思结果]\n{memory_feedback}\n")
+        return ToolResponse(content=output)
+
+    started_at = time.time()
+    session_messages: list[dict[str, Any]] = []
+    session_tool_events: list[dict[str, Any]] = []
     try:
-        process_single_input, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
+        _, run_interactive_session, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
         agent = UnifiedProcessingAgent(
             name="Step2_3MedicalCleaner",
             use_llm=True,
             use_umls=True,
             verbose=False,
         )
-        result = await process_single_input(
-            input_path=data_dir,
+        print("\n[Step2_3] 已进入交互模式。输入 'quit' 结束当前 Step2_3 并返回主编排器。")
+        result = await run_interactive_session(
             agent=agent,
             output_dir=output_dir,
-            verbose=False,
-            auto_save=True,
-            compact=False,
+            show_banner=True,
         )
         output = _build_step2_3_summary(data_dir, result)
+        session_messages, session_tool_events = _build_step2_3_trace_payload(result)
     except Exception as e:
         output = (
             f"Step2_3: 医学数据清洗与标准化执行失败。\n"
@@ -757,7 +1042,20 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
         input_data=data_dir,
         output_content=output,
         context=context,
+        raw_messages=session_messages,
+        full_raw_messages=session_messages,
+        tool_events=session_tool_events,
+        full_tool_events=session_tool_events,
     )
+    duration = time.time() - started_at
+    memory_feedback = await report_last_step_reflection(
+        input_text=data_dir,
+        duration_seconds=duration,
+        orchestrator_summary=output,
+        retrieved_bullet_ids=[],
+    )
+    if memory_feedback:
+        print(f"\n[Memory Supervisor Step2_3 反思结果]\n{memory_feedback}\n")
     return ToolResponse(content=output)
 
 
@@ -773,13 +1071,88 @@ async def run_step3_semantic_standardization(input_data: str, context: str = "")
 
 
 async def run_step4_data_quality_repair(input_data: str, context: str = "") -> ToolResponse:
-    output = "Step 4 (Mock): 检测完毕，数据质量良好。"
+    data_dir = _get_default_step4_input_path(input_data)
+    project_root = _get_project_root()
+    workspace_dir = os.path.join(_get_program_output_root(), "step4_results")
+    validation_config_path = os.path.join(project_root, "agent_4", "validation_config.json")
+    print(f"[Step4] 使用输入目录: {data_dir}")
+
+    if not os.path.isdir(data_dir):
+        output = f"Step4: 输入目录不存在，无法执行数据质量检测与自动修复。输入目录: {data_dir}"
+        _trace_collector.record_step(
+            step_name="数据质量检测与自动修复",
+            input_data=data_dir,
+            output_content=output,
+            context=context,
+        )
+        memory_feedback = await report_last_step_reflection(
+            input_text=data_dir,
+            duration_seconds=0.0,
+            orchestrator_summary=output,
+            retrieved_bullet_ids=[],
+        )
+        if memory_feedback:
+            print(f"\n[Memory Supervisor Step4 反思结果]\n{memory_feedback}\n")
+        return ToolResponse(content=output)
+
+    started_at = time.time()
+    session_messages: list[dict[str, Any]] = []
+    session_tool_events: list[dict[str, Any]] = []
+    try:
+        if project_root not in sys.path:
+            sys.path.insert(0, project_root)
+        agent4_module = importlib.import_module("agent_4.main")
+        run_data_quality_repair = getattr(agent4_module, "run_data_quality_repair")
+
+        result = await run_data_quality_repair(
+            input_dir=data_dir,
+            workspace_dir=workspace_dir,
+            validation_config_path=validation_config_path,
+            verbose=True,
+        )
+        output = _build_step4_summary(data_dir, result)
+        session_messages, session_tool_events = _build_step4_trace_payload(result)
+    except Exception as e:
+        result = {
+            "success": False,
+            "input_dir": data_dir,
+            "input_csv": "",
+            "workspace_dir": workspace_dir,
+            "final_output_csv": "",
+            "validation_report_path": "",
+            "detailed_report_path": "",
+            "failed_columns_path": "",
+            "quality_score": None,
+            "generated_cleaners": 0,
+            "generation_failures": {},
+            "runtime_failures": {},
+            "error": str(e),
+        }
+        output = (
+            f"Step4: 数据质量检测与自动修复执行失败。\n"
+            f"输入目录: {data_dir}\n错误: {e}"
+        )
+        session_messages, session_tool_events = _build_step4_trace_payload(result)
+
     _trace_collector.record_step(
         step_name="数据质量检测与自动修复",
-        input_data=input_data,
+        input_data=data_dir,
         output_content=output,
         context=context,
+        raw_messages=session_messages,
+        full_raw_messages=session_messages,
+        tool_events=session_tool_events,
+        full_tool_events=session_tool_events,
     )
+    duration = time.time() - started_at
+    memory_feedback = await report_last_step_reflection(
+        input_text=data_dir,
+        duration_seconds=duration,
+        orchestrator_summary=output,
+        retrieved_bullet_ids=[],
+    )
+    if memory_feedback:
+        print(f"\n[Memory Supervisor Step4 反思结果]\n{memory_feedback}\n")
     return ToolResponse(content=output)
 
 

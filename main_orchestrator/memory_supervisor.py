@@ -29,7 +29,7 @@ def _format_message_content(content) -> str:
                 if block_type == "text":
                     parts.append(block.get("text", ""))
                 elif block_type == "thinking":
-                    parts.append(block.get("thinking", ""))
+                    continue
                 elif block_type == "tool_result":
                     parts.append(str(block.get("output", "")))
                 elif block_type == "tool_use":
@@ -225,6 +225,8 @@ async def _run_memory_agent_with_required_first_tool(
 
 
 def _create_memory_agent() -> ReActAgent:
+    from step_wrappers import register_no_thinking_print_hook
+
     toolkit = Toolkit()
     toolkit.register_tool_function(reflector_analyze)
     toolkit.register_tool_function(update_strategy_count)
@@ -233,6 +235,7 @@ def _create_memory_agent() -> ReActAgent:
 
     model = OllamaChatModel(
         model_name=config.LLM_MODEL,
+        enable_thinking=config.LLM_ENABLE_THINKING,
         options={
             "temperature": config.LLM_TEMPERATURE,
             "seed": config.LLM_SEED,
@@ -276,7 +279,7 @@ def _create_memory_agent() -> ReActAgent:
 当前记忆库路径：{MEMORY_BANK_PATH}
 """
 
-    return ReActAgent(
+    agent = ReActAgent(
         name="MemorySupervisor",
         sys_prompt=sys_prompt,
         model=model,
@@ -284,6 +287,7 @@ def _create_memory_agent() -> ReActAgent:
         toolkit=toolkit,
         max_iters=10,
     )
+    return register_no_thinking_print_hook(agent)
 
 
 async def get_pipeline_context(query_text: str = "") -> tuple[str, list[str]]:

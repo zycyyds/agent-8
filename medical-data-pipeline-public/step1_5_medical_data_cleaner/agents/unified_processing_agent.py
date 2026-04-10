@@ -32,7 +32,7 @@ from agentscope.model import OpenAIChatModel
 from config.settings import ThinkingSafeOpenAIChatFormatter
 from agentscope.tool import Toolkit
 
-from config.settings import DataType, ProcessingStage, get_api_config
+from config.settings import DataType, ProcessingStage, get_api_config, register_no_thinking_print_hook
 from tools.data_type_detector import detect_data_type
 from tools.csv_reader import get_csv_info_for_agent
 from tools.folder_analyzer import (
@@ -178,7 +178,7 @@ class UnifiedProcessingAgent(AgentBase):
             )
             
             # 创建医学信息提取Agent
-            self.med_agent = ReActAgent(
+            self.med_agent = register_no_thinking_print_hook(ReActAgent(
                 name="MedicalExpert",
                 sys_prompt="""你是一位专业的医学数据提取专家，从各类医学文档（检验报告、病历、处方、诊断书等）中提取结构化信息。
 
@@ -245,7 +245,7 @@ class UnifiedProcessingAgent(AgentBase):
                 model=self.model,
                 formatter=ThinkingSafeOpenAIChatFormatter(),
                 toolkit=toolkit,
-            )
+            ))
             
             # 创建标准化Agent
             try:

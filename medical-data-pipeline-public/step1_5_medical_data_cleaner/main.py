@@ -932,56 +932,214 @@ async def batch_process(
     return results
 
 
+async def _handle_interactive_command(
+    user_input: str,
+    agent: UnifiedProcessingAgent,
+    output_dir: Optional[str],
+    analyze_mode: bool,
+    output_func=print,
+) -> dict:
+    command = user_input.strip()
+    if not command:
+        return {
+            "analyze_mode": analyze_mode,
+            "should_quit": False,
+            "handled": False,
+            "event": "empty",
+            "success": True,
+        }
+
+    lowered = command.lower()
+    if lowered == "quit":
+        output_func("👋 再见!")
+        return {
+            "analyze_mode": analyze_mode,
+            "should_quit": True,
+            "handled": True,
+            "event": "quit",
+            "success": True,
+        }
+
+    if lowered == "analyze":
+        next_mode = not analyze_mode
+        output_func(f"已切换到{'分析' if next_mode else '处理'}模式")
+        return {
+            "analyze_mode": next_mode,
+            "should_quit": False,
+            "handled": True,
+            "event": "toggle_analyze",
+            "success": True,
+        }
+
+    if lowered == "stats":
+        stats = agent.get_stats()
+        output_func("处理统计:")
+        output_func(f"  - 总处理数: {stats['total_processed']}")
+        output_func(f"  - 按类型: {stats['by_type']}")
+        output_func(f"  - 错误数: {stats['errors']}")
+        return {
+            "analyze_mode": analyze_mode,
+            "should_quit": False,
+            "handled": True,
+            "event": "stats",
+            "success": True,
+            "stats": stats,
+        }
+
+    if analyze_mode:
+        analysis_result = await detect_and_analyze(command, verbose=True)
+        return {
+            "analyze_mode": analyze_mode,
+            "should_quit": False,
+            "handled": True,
+            "event": "analyze_input",
+            "success": bool((analysis_result or {}).get("success", True)),
+            "input": command,
+            "result": analysis_result,
+        }
+
+    process_result = await process_single_input(command, agent, output_dir, verbose=True)
+    return {
+        "analyze_mode": analyze_mode,
+        "should_quit": False,
+        "handled": True,
+        "event": "process_input",
+        "success": bool((process_result or {}).get("success", False)),
+        "input": command,
+        "result": process_result,
+    }
+
+
+async def run_interactive_session(
+    agent: UnifiedProcessingAgent,
+    output_dir: Optional[str] = None,
+    input_func=input,
+    output_func=print,
+    show_banner: bool = True,
+) -> Dict[str, Any]:
+    if show_banner:
+        output_func("\n📝 交互模式 - 输入文件路径进行处理")
+        output_func("   输入 'quit' 退出, 'analyze' 切换到分析模式, 'stats' 查看统计")
+        output_func("-" * 60)
+
+    analyze_mode = False
+    session_summary = {
+        "quit_reason": "unknown",
+        "processed_inputs": 0,
+        "analyze_requests": 0,
+        "stats_requests": 0,
+        "success_count": 0,
+        "failure_count": 0,
+        "last_input": None,
+        "last_event": None,
+        "output_dir": output_dir,
+        "session_events": [],
+    }
+
+    while True:
+        try:
+            prompt = "分析> " if analyze_mode else "处理> "
+            user_input = input_func(f"\n{prompt}").strip()
+            command_result = await _handle_interactive_command(
+                user_input=user_input,
+                agent=agent,
+                output_dir=output_dir,
+                analyze_mode=analyze_mode,
+                output_func=output_func,
+            )
+            analyze_mode = command_result.get("analyze_mode", analyze_mode)
+            session_summary["last_event"] = command_result.get("event")
+
+            event = command_result.get("event")
+            session_event = {
+                "input": user_input,
+                "event": event,
+                "success": bool(command_result.get("success", False)),
+                "mode": "analyze" if analyze_mode else "process",
+            }
+            if command_result.get("input") is not None:
+                session_event["target"] = command_result.get("input")
+            result_payload = command_result.get("result")
+            if isinstance(result_payload, dict):
+                if result_payload.get("data_type") is not None:
+                    session_event["data_type"] = result_payload.get("data_type")
+                if result_payload.get("output_file"):
+                    session_event["output_file"] = result_payload.get("output_file")
+                if result_payload.get("error"):
+                    session_event["error"] = str(result_payload.get("error"))
+                stats_payload = result_payload.get("statistics")
+                if isinstance(stats_payload, dict) and stats_payload:
+                    session_event["statistics"] = {
+                        "total_rows": stats_payload.get("total_rows"),
+                        "terms_standardized": stats_payload.get("terms_standardized"),
+                        "values_normalized": stats_payload.get("values_normalized"),
+                        "processed_files": stats_payload.get("processed_files"),
+                        "failed_files": stats_payload.get("failed_files"),
+                    }
+            if command_result.get("stats"):
+                session_event["stats"] = command_result.get("stats")
+            session_summary["session_events"].append(session_event)
+
+            if event in {"process_input", "analyze_input"}:
+                session_summary["processed_inputs"] += 1
+                session_summary["last_input"] = command_result.get("input")
+                if command_result.get("success"):
+                    session_summary["success_count"] += 1
+                else:
+                    session_summary["failure_count"] += 1
+            elif event == "toggle_analyze":
+                session_summary["analyze_requests"] += 1
+            elif event == "stats":
+                session_summary["stats_requests"] += 1
+
+            if command_result.get("should_quit"):
+                session_summary["quit_reason"] = "quit"
+                break
+        except KeyboardInterrupt:
+            output_func("\n👋 再见!")
+            session_summary["quit_reason"] = "keyboard_interrupt"
+            session_summary["session_events"].append({
+                "input": None,
+                "event": "keyboard_interrupt",
+                "success": True,
+                "mode": "analyze" if analyze_mode else "process",
+            })
+            break
+        except EOFError:
+            output_func("\n👋 再见!")
+            session_summary["quit_reason"] = "eof"
+            session_summary["session_events"].append({
+                "input": None,
+                "event": "eof",
+                "success": True,
+                "mode": "analyze" if analyze_mode else "process",
+            })
+            break
+        except Exception as e:
+            output_func(f"❌ 错误: {e}")
+            session_summary["failure_count"] += 1
+            session_summary["last_event"] = "exception"
+            session_summary["last_error"] = str(e)
+            session_summary["session_events"].append({
+                "input": user_input if 'user_input' in locals() else None,
+                "event": "exception",
+                "success": False,
+                "mode": "analyze" if analyze_mode else "process",
+                "error": str(e),
+            })
+
+    return session_summary
+
+
 async def interactive_mode(agent: UnifiedProcessingAgent, output_dir: Optional[str] = None):
     """
     交互式处理模式
-    
+
     Args:
         agent: 处理Agent
         output_dir: 输出目录
     """
-    print("\n📝 交互模式 - 输入文件路径进行处理")
-    print("   输入 'quit' 退出, 'analyze' 切换到分析模式, 'stats' 查看统计")
-    print("-" * 60)
-    
-    analyze_mode = False
-    
-    while True:
-        try:
-            prompt = "分析> " if analyze_mode else "处理> "
-            user_input = input(f"\n{prompt}").strip()
-            
-            if not user_input:
-                continue
-            
-            if user_input.lower() == 'quit':
-                print("👋 再见!")
-                break
-            
-            if user_input.lower() == 'analyze':
-                analyze_mode = not analyze_mode
-                print(f"已切换到{'分析' if analyze_mode else '处理'}模式")
-                continue
-            
-            if user_input.lower() == 'stats':
-                stats = agent.get_stats()
-                print(f"处理统计:")
-                print(f"  - 总处理数: {stats['total_processed']}")
-                print(f"  - 按类型: {stats['by_type']}")
-                print(f"  - 错误数: {stats['errors']}")
-                continue
-            
-            # 处理输入
-            if analyze_mode:
-                await detect_and_analyze(user_input, verbose=True)
-            else:
-                await process_single_input(user_input, agent, output_dir, verbose=True)
-                
-        except KeyboardInterrupt:
-            print("\n👋 再见!")
-            break
-        except Exception as e:
-            print(f"❌ 错误: {e}")
+    await run_interactive_session(agent=agent, output_dir=output_dir)
 
 
 async def demo_csv_processing():
