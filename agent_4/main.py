@@ -60,22 +60,28 @@ def resolve_input_csv(data_path: str) -> str:
     if not os.path.isdir(data_path):
         raise FileNotFoundError(f"输入路径不存在: {data_path}")
 
-    files = sorted(
-        name
-        for name in os.listdir(data_path)
-        if name.lower().endswith(".csv") and os.path.isfile(os.path.join(data_path, name))
-    )
-    if not files:
+    candidate_paths: list[str] = []
+    for root, _, files in os.walk(data_path):
+        for name in files:
+            if name.lower().endswith(".csv"):
+                candidate_paths.append(os.path.join(root, name))
+
+    if not candidate_paths:
         raise FileNotFoundError(f"在目录 {data_path} 中未找到 CSV 文件。")
-    if "all_patients.csv" in files:
-        selected = "all_patients.csv"
-    elif len(files) == 1:
-        selected = files[0]
-    elif "input.csv" in files:
-        selected = "input.csv"
-    else:
-        selected = files[0]
-    return os.path.join(data_path, selected)
+
+    candidate_paths = sorted(os.path.abspath(path) for path in candidate_paths)
+    basename_to_paths: dict[str, list[str]] = {}
+    for path in candidate_paths:
+        basename_to_paths.setdefault(os.path.basename(path), []).append(path)
+
+    for preferred_name in ("all_patients.csv", "input.csv"):
+        if preferred_name in basename_to_paths:
+            paths = basename_to_paths[preferred_name]
+            paths.sort(key=os.path.getmtime, reverse=True)
+            return paths[0]
+
+    candidate_paths.sort(key=os.path.getmtime, reverse=True)
+    return candidate_paths[0]
 
 
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:

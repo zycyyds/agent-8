@@ -1,6 +1,7 @@
 import importlib
 import json
 import os
+import re
 import sys
 import time
 from typing import Any
@@ -539,19 +540,12 @@ def _get_default_step2_3_input_path(input_data: str) -> str:
 
 
 def _get_default_step4_input_path(input_data: str) -> str:
-    if input_data and os.path.isdir(str(input_data)):
-        return str(input_data)
-
     step2_3_root = os.path.join(_get_program_output_root(), "step2_3_results")
     if os.path.isdir(step2_3_root):
-        result_dirs = [
-            os.path.join(step2_3_root, name)
-            for name in os.listdir(step2_3_root)
-            if name.startswith("results_") and os.path.isdir(os.path.join(step2_3_root, name))
-        ]
-        if result_dirs:
-            result_dirs.sort(key=os.path.getmtime, reverse=True)
-            return result_dirs[0]
+        return step2_3_root
+
+    if input_data and os.path.isdir(str(input_data)):
+        return str(input_data)
 
     return os.path.join(_get_program_output_root(), "data")
 
@@ -701,6 +695,7 @@ def _build_step4_summary(input_dir: str, result: dict[str, Any]) -> str:
         return (
             f"Step4: 数据质量检测与自动修复失败。\n"
             f"输入目录: {input_dir}\n"
+            f"预处理输入CSV: {result.get('prepared_input_csv', '')}\n"
             f"输入文件: {result.get('input_csv', '')}\n"
             f"错误: {result.get('error', 'unknown error')}"
         )
@@ -708,7 +703,9 @@ def _build_step4_summary(input_dir: str, result: dict[str, Any]) -> str:
     lines = [
         "Step4: 数据质量检测与自动修复完成。",
         f"输入目录: {input_dir}",
+        f"预处理输入CSV: {result.get('prepared_input_csv', '')}",
         f"输入文件: {result.get('input_csv', '')}",
+        f"JSON 转换文件数: {int(result.get('prepared_json_count') or 0)}",
         f"清洗结果: {result.get('final_output_csv', '')}",
         f"质量评分: {float(result.get('quality_score') or 0.0):.2f}",
         f"验证报告: {result.get('validation_report_path', '')}",
@@ -728,8 +725,10 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
     quality_score = result.get("quality_score")
     generation_failures = result.get("generation_failures") or {}
     runtime_failures = result.get("runtime_failures") or {}
+    prepared_csv = str(result.get("prepared_input_csv") or "")
+    prepared_json_count = int(result.get("prepared_json_count") or 0)
     summary_text = (
-        f"input_dir={input_dir} | input_csv={input_csv} | final_output_csv={final_output_csv} | "
+        f"input_dir={input_dir} | input_csv={input_csv} | prepared_input_csv={prepared_csv} | final_output_csv={final_output_csv} | "
         f"quality_score={quality_score} | generated_cleaners={result.get('generated_cleaners', 0)} | "
         f"generation_failures={len(generation_failures)} | runtime_failures={len(runtime_failures)}"
     )
@@ -741,6 +740,13 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
         }
     ]
     tool_events = [
+        {
+            "tool_name": "step4_prepare_input",
+            "tool_input": {"input_dir": input_dir},
+            "tool_output": f"prepared_input_csv={prepared_csv} | prepared_json_count={prepared_json_count}",
+            "status": "succeeded" if prepared_csv else "failed",
+            "error": "" if prepared_csv else str(result.get('error') or "未生成可用的输入 CSV"),
+        },
         {
             "tool_name": "step4_resolve_input_csv",
             "tool_input": {"input_dir": input_dir},
@@ -784,6 +790,89 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
         },
     ]
     return assistant_outputs, tool_events
+
+
+def _extract_step4_row_from_json_payload(json_path: str, payload: dict[str, Any]) -> dict[str, Any]:
+    standardized = payload.get("standardized_result") if isinstance(payload.get("standardized_result"), dict) else {}
+    extraction = payload.get("extraction_result") if isinstance(payload.get("extraction_result"), dict) else {}
+    entities = standardized.get("entities") or extraction.get("entities") or []
+    temporal_info = standardized.get("temporal_info") or extraction.get("temporal_info") or []
+    quantity_info = standardized.get("quantity_info") or extraction.get("quantity_info") or []
+    relations = standardized.get("relations") or extraction.get("relations") or []
+
+    row: dict[str, Any] = {
+        "source_json": json_path,
+        "success": payload.get("success"),
+        "data_type": payload.get("data_type"),
+        "processing_stages": json.dumps(payload.get("processing_stages") or [], ensure_ascii=False),
+        "preprocessed_text": payload.get("preprocessed_text"),
+        "entity_count": len(entities) if isinstance(entities, list) else 0,
+        "temporal_count": len(temporal_info) if isinstance(temporal_info, list) else 0,
+        "quantity_count": len(quantity_info) if isinstance(quantity_info, list) else 0,
+        "relation_count": len(relations) if isinstance(relations, list) else 0,
+        "entities_summary": json.dumps(entities, ensure_ascii=False),
+        "temporal_info": json.dumps(temporal_info, ensure_ascii=False),
+        "quantity_info": json.dumps(quantity_info, ensure_ascii=False),
+        "relations": json.dumps(relations, ensure_ascii=False),
+        "impression": standardized.get("impression") or extraction.get("impression"),
+        "indication": standardized.get("indication") or extraction.get("indication"),
+        "standardization_stats": json.dumps(standardized.get("_standardization_stats") or {}, ensure_ascii=False),
+    }
+
+    if isinstance(entities, list):
+        for entity in entities:
+            if not isinstance(entity, dict):
+                continue
+            category = str(entity.get("category") or "Other")
+            name = str(entity.get("name") or "")
+            if not name:
+                continue
+            safe_key = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff_]+", "_", name).strip("_") or "unknown"
+            prefix = f"{category}_{safe_key}"
+            value = entity.get("normalized_value")
+            if value is None:
+                value = entity.get("value")
+            row[f"{prefix}_value"] = value
+            row[f"{prefix}_unit"] = entity.get("normalized_unit") or entity.get("unit")
+            row[f"{prefix}_original_text"] = entity.get("original_text")
+
+    return row
+
+
+def _prepare_step4_input_dir(input_dir: str, workspace_dir: str) -> tuple[str, int]:
+    candidate_csv = []
+    candidate_json = []
+    for root, _, files in os.walk(input_dir):
+        for name in files:
+            lower_name = name.lower()
+            absolute_path = os.path.join(root, name)
+            if lower_name.endswith(".csv"):
+                candidate_csv.append(absolute_path)
+            elif lower_name.endswith(".json"):
+                candidate_json.append(absolute_path)
+
+    if candidate_csv:
+        return input_dir, 0
+
+    if not candidate_json:
+        raise FileNotFoundError(f"在目录 {input_dir} 中未找到可用于 Step4 的 CSV 或 JSON 文件。")
+
+    rows = []
+    for json_path in sorted(candidate_json):
+        with open(json_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+        if not isinstance(payload, dict):
+            continue
+        rows.append(_extract_step4_row_from_json_payload(json_path, payload))
+
+    if not rows:
+        raise ValueError(f"目录 {input_dir} 中的 JSON 无法转换为 Step4 输入表格。")
+
+    os.makedirs(workspace_dir, exist_ok=True)
+    prepared_csv = os.path.join(workspace_dir, "prepared_step4_input.csv")
+    import pandas as pd
+    pd.DataFrame(rows).to_csv(prepared_csv, index=False)
+    return prepared_csv, len(candidate_json)
 
 
 async def run_step1_modal_recognition(input_data: str, context: str = "") -> ToolResponse:
@@ -1099,17 +1188,21 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
     session_messages: list[dict[str, Any]] = []
     session_tool_events: list[dict[str, Any]] = []
     try:
+        prepared_input, prepared_json_count = _prepare_step4_input_dir(data_dir, workspace_dir)
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
         agent4_module = importlib.import_module("agent_4.main")
         run_data_quality_repair = getattr(agent4_module, "run_data_quality_repair")
 
         result = await run_data_quality_repair(
-            input_dir=data_dir,
+            input_dir=prepared_input,
             workspace_dir=workspace_dir,
             validation_config_path=validation_config_path,
             verbose=True,
         )
+        result["input_dir"] = data_dir
+        result["prepared_input_csv"] = prepared_input if str(prepared_input).lower().endswith(".csv") else ""
+        result["prepared_json_count"] = prepared_json_count
         output = _build_step4_summary(data_dir, result)
         session_messages, session_tool_events = _build_step4_trace_payload(result)
     except Exception as e:

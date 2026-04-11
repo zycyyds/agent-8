@@ -56,6 +56,19 @@
       "status": "active"
     },
     {
+      "id": "data-00002",
+      "content": "当执行数据集整理（Organize Dataset By Modality）时，若存在人工验证步骤，必须将验证结果文件（validation_results.json）中的最终分类结论作为路由依据，严禁直接使用版面分析阶段的初始分类结果进行文件归档，确保混合模态图片在验证后能正确降级或保留。",
+      "section": "data_organization",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-11T00:03:44.503111",
+      "last_used": "2026-04-11T00:03:44.503111",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "dom-00001",
       "content": "在处理医疗影像数据时，应优先识别图片模态类型，仅对包含 Figure 的混合模态图片执行人工验证 GUI 步骤，纯 OCR 图片可直接进入整理流程，以节省资源并确保数据准确性。",
       "section": "domain_heuristics",
@@ -108,6 +121,32 @@
       "status": "active"
     },
     {
+      "id": "mod-00002",
+      "content": "在处理包含'ocr+figure'混合模态的图片时，必须强制插入人工验证步骤（调用 prepare_and_launch_validation_gui），并将验证结果文件路径作为后续数据整理工具（Organize Dataset By Modality）的必要输入参数，严禁跳过验证直接整理。",
+      "section": "modality_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T18:37:47.919303",
+      "last_used": "2026-04-10T18:37:47.919303",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "mod-00003",
+      "content": "当人工验证流程（prepare_and_launch_validation_gui）完成并返回结果后，必须依据验证结论动态更新图片模态分类：若验证确认图片中无有效 Figure 内容，则将其从'ocr+figure'混合模态重新归类为'ocr'纯文本模态，严禁在验证后仍保留原混合模态标签进行后续处理。",
+      "section": "modality_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T19:29:08.011320",
+      "last_used": "2026-04-10T19:29:08.011320",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "out-00001",
       "content": "输出结论文本必须严格依据工具返回结果生成，禁止自行补充路径、准确率或统计字段。",
       "section": "output_contracts",
@@ -128,6 +167,45 @@
       "harmful_count": 0,
       "created_at": "2026-04-09T15:25:26.586045",
       "last_used": "2026-04-09T15:25:26.586045",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00003",
+      "content": "当输入校验发现指定目录中缺失有效文件时，最终输出必须明确报告‘文件缺失’错误及具体缺失的文件类型，严禁生成包含空统计项或默认值的虚假处理结果。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T18:56:42.353712",
+      "last_used": "2026-04-10T18:56:42.353712",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00004",
+      "content": "当输入校验发现指定目录中缺失有效文件导致流水线中断时，最终输出必须仅包含‘文件缺失’错误描述及缺失文件类型，严禁生成包含空统计项、默认值或虚假处理结果的摘要。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T19:46:53.286403",
+      "last_used": "2026-04-10T19:46:53.286403",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00005",
+      "content": "在数据质量检测与自动修复流程中，最终输出摘要必须严格引用 step4_run_validation 工具返回的 quality_score 数值和 validation_report 文件路径，严禁在工具未返回该数值或路径时自行估算、补写或生成默认值。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-11T01:11:49.123192",
+      "last_used": "2026-04-11T01:11:49.123192",
       "metadata": {
         "source": "curator"
       },
@@ -225,15 +303,93 @@
         "source": "curator"
       },
       "status": "active"
+    },
+    {
+      "id": "tool-00007",
+      "content": "当输入参数为目录路径时，必须显式循环调用处理工具遍历该目录下的所有文件，严禁在单次文件处理成功后直接执行退出指令，以确保全量数据清洗完成。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T18:49:07.191528",
+      "last_used": "2026-04-10T18:49:07.191528",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00008",
+      "content": "在调用任何数据清洗或处理工具前，必须显式检查输入目录中是否存在指定格式（如 CSV）的有效文件；若未找到匹配文件，必须立即终止后续所有工具调用，严禁将空路径或无效路径传递给下游工具。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T18:56:42.348428",
+      "last_used": "2026-04-10T18:56:42.348428",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00009",
+      "content": "当输入参数为目录路径时，在决定执行循环遍历或报错前，必须先验证目标工具是否原生支持批量遍历；若工具仅支持单文件处理，则必须在调用前显式展开目录内容并逐个调用，严禁直接将目录路径作为单文件路径传入导致任务不完整。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T19:39:53.574001",
+      "last_used": "2026-04-10T19:39:53.574001",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00010",
+      "content": "在数据流水线任务中，若首个输入解析工具（如 resolve_input_csv）因文件缺失或格式错误失败，必须立即终止后续所有依赖该输入的工具调用，严禁继续执行下游步骤，并直接跳转至错误报告生成阶段。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-10T19:46:53.283688",
+      "last_used": "2026-04-10T19:46:53.283688",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00011",
+      "content": "当输入参数为目录路径且处于交互式会话模式时，必须显式遍历该目录下所有匹配文件并逐一处理，严禁在仅处理完首个文件后直接响应 quit 指令或生成会话摘要；只有当目录内所有文件均处理完毕或用户显式中断时，方可输出最终总结。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-11T00:15:58.296907",
+      "last_used": "2026-04-11T00:15:58.296907",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00012",
+      "content": "在执行 step4_write_reports 工具前，必须显式校验 step4_run_validation 工具的输出是否包含有效的 validation_report 文件路径；若该路径缺失或为空，必须立即终止报告生成步骤并报错，严禁将空路径或无效路径传递给下游工具。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-11T01:11:49.130394",
+      "last_used": "2026-04-11T01:11:49.130394",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
     }
   ],
   "statistics": {
-    "total_executions": 29,
-    "unique_strategies": 17,
-    "last_reflection": "2026-04-10T16:55:18.131868",
-    "total_bullets": 17,
-    "last_refine_at": "2026-04-10T16:55:18.131765",
+    "total_executions": 38,
+    "unique_strategies": 29,
+    "last_reflection": "2026-04-11T01:12:03.704799",
+    "total_bullets": 29,
+    "last_refine_at": "2026-04-11T01:12:03.704679",
     "duplicate_merges": 0,
-    "last_query": "program/output/data"
+    "last_query": "/Users/mkbk/PycharmProjects/agent-8/program/output/step2_3_results"
   }
 }
