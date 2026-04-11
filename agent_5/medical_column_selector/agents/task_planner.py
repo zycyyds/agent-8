@@ -18,47 +18,58 @@ except Exception:  # pragma: no cover - 兼容未安装 agentscope 的环境
             pass
 
 
+def _normalize_openai_model_name(model_name: Optional[str]) -> str:
+    """把传入模型名归一化为 OpenAI 可识别值。"""
+    raw = str(model_name or "").strip()
+    if not raw:
+        return "gpt-4.1-mini"
+    if raw.lower().startswith("openai/"):
+        raw = raw.split("/", 1)[1].strip()
+    if raw.startswith("gpt-"):
+        return raw
+
+    env_model = str(os.environ.get("MODEL_NAME", "")).strip()
+    if env_model.lower().startswith("openai/"):
+        env_model = env_model.split("/", 1)[1].strip()
+    if env_model.startswith("gpt-"):
+        return env_model
+
+    return "gpt-4.1-mini"
+
+
 class TaskPlannerAgent(AgentBase):
     """把自然语言任务转成结构化任务规格。"""
 
     def __init__(self, model_name: Optional[str] = None, allow_fallback: bool = False):
         super().__init__()
         self.sys_prompt = self._get_system_prompt()
-        self.model_name = (model_name or "dashscope/qwen-max").split("/")[-1]
+        self.model_name = _normalize_openai_model_name(model_name)
         self.allow_fallback = allow_fallback
         self.model = None
         self.init_error: Optional[str] = None
         self.last_call_mode = "uninitialized"
         self.last_call_error: Optional[str] = None
         self.last_raw_response: Optional[str] = None
-        self.api_key_env_var = self._resolve_api_key_env_var(model_name or "dashscope/qwen-max")
 
-        api_key = os.environ.get(self.api_key_env_var)
+        api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            self.init_error = (
-                f"Missing API key for model '{model_name or 'dashscope/qwen-max'}'. "
-                f"Expected environment variable: {self.api_key_env_var}"
-            )
+            self.init_error = "Missing API key for OpenAI model. Expected environment variable: OPENAI_API_KEY"
             return
 
         try:
-            from agentscope.model import DashScopeChatModel
+            from agentscope.model import OpenAIChatModel
 
-            # 这里只保留一个最小可用的模型初始化，避免把配置逻辑散在各处。
-            self.model = DashScopeChatModel(
+            self.model = OpenAIChatModel(
                 model_name=self.model_name,
                 api_key=api_key,
-                generate_args={"temperature": 0.2},
+                client_kwargs={
+                    "base_url": os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1"),
+                    "timeout": int(os.environ.get("OPENAI_TIMEOUT", "120")),
+                },
+                generate_kwargs={"temperature": 0.2},
             )
         except Exception as exc:
             self.init_error = str(exc)
-
-    def _resolve_api_key_env_var(self, model_name: str) -> str:
-        """根据 provider 推断所需的环境变量名。"""
-        provider = str(model_name).split("/", 1)[0].lower()
-        if provider == "dashscope":
-            return "DASHSCOPE_API_KEY"
-        raise ValueError(f"Unsupported model provider in model_name: {model_name}")
 
     def ensure_llm_ready(self) -> None:
         """在真正跑任务前显式确认模型已可用。"""
@@ -190,12 +201,14 @@ Remember to respond ONLY with valid JSON, no other text.
         return result.get("value", "")
 
     def _extract_text_from_chunk(self, chunk: Any) -> str:
-        """把不同响应结构统一抽成字符串。"""
+        """把不同响应结构统一抽成字符串，并过滤 thinking 内容。"""
         if chunk is None:
             return ""
         if isinstance(chunk, str):
             return chunk
         if isinstance(chunk, dict):
+            if str(chunk.get("type") or "") == "thinking":
+                return ""
             if isinstance(chunk.get("text"), str):
                 return chunk["text"]
             if isinstance(chunk.get("content"), str):
@@ -207,8 +220,11 @@ Remember to respond ONLY with valid JSON, no other text.
         if isinstance(content, list):
             parts = []
             for item in content:
-                if isinstance(item, dict) and isinstance(item.get("text"), str):
-                    parts.append(item["text"])
+                if isinstance(item, dict):
+                    if str(item.get("type") or "") == "thinking":
+                        continue
+                    if isinstance(item.get("text"), str):
+                        parts.append(item["text"])
                 elif isinstance(item, str):
                     parts.append(item)
             return "".join(parts)

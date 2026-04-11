@@ -65,15 +65,21 @@ class ConfigManager:
         return self._config.get("workflow_configs", {})
 
     def get_default_model_name(self) -> str:
-        """取第一组可用模型作为默认模型。"""
+        """默认只返回 OpenAI 模型，避免旧配置把非 OpenAI 模型带入流程。"""
+        env_model = str(os.environ.get("MODEL_NAME", "")).strip()
+        if env_model:
+            if env_model.lower().startswith("openai/"):
+                return env_model
+            if "/" not in env_model:
+                return f"openai/{env_model}"
+
         model_configs = self.get_model_config()
+        openai_cfg = model_configs.get("openai_configs", {})
+        openai_model = str(openai_cfg.get("model", "")).strip()
+        if openai_model:
+            return f"openai/{openai_model}"
 
-        for provider, config in model_configs.items():
-            if 'model' in config:
-                provider_name = provider.split('_')[0].lower()
-                return f"{provider_name}/{config['model']}"
-
-        return "dashscope/qwen-max"
+        return "openai/gpt-4.1-mini"
 
     def get_model_settings(self, model_provider: str) -> Dict[str, Any]:
         """返回指定 provider 的配置。"""

@@ -69,10 +69,9 @@ def resolve_input_csv(data_path: str) -> str:
     if not candidate_paths:
         raise FileNotFoundError(f"在目录 {data_path} 中未找到 CSV 文件。")
 
-    candidate_paths = sorted(os.path.abspath(path) for path in candidate_paths)
     basename_to_paths: dict[str, list[str]] = {}
     for path in candidate_paths:
-        basename_to_paths.setdefault(os.path.basename(path), []).append(path)
+        basename_to_paths.setdefault(os.path.basename(path).lower(), []).append(path)
 
     for preferred_name in ("all_patients.csv", "input.csv"):
         if preferred_name in basename_to_paths:
@@ -230,20 +229,41 @@ def load_and_run_cleaner(impl_path: str, input_path: str, module_name: str) -> t
         return None, [f"运行失败: {e}"]
 
 
-async def call_agent(prompt: str) -> str:
+def _extract_clean_and_raw_text(content) -> tuple[str, str]:
+    if isinstance(content, list):
+        clean_parts = []
+        raw_parts = []
+        for item in content:
+            if not isinstance(item, dict):
+                raw_parts.append(str(item))
+                clean_parts.append(str(item))
+                continue
+            text = item.get("text") if isinstance(item.get("text"), str) else ""
+            item_type = str(item.get("type") or "")
+            if text:
+                raw_parts.append(text)
+            if item_type != "thinking" and text:
+                clean_parts.append(text)
+        return "".join(clean_parts).strip(), "".join(raw_parts).strip()
+
+    text = str(content).strip()
+    return text, text
+
+
+async def call_agent(prompt: str) -> tuple[str, str]:
     agent = create_cleaner_designer_agent()
     resp = await agent(Msg("user", prompt, "user"))
     content = getattr(resp, "content", resp)
-    if isinstance(content, list):
-        return "".join(item.get("text", "") for item in content if isinstance(item, dict)).strip()
-    return str(content).strip()
+    clean_text, raw_text = _extract_clean_and_raw_text(content)
+    return clean_text, raw_text
 
 
 async def retry_analysis(prompt: str) -> str:
     last_error = None
     for _ in range(MAX_ANALYSIS_RETRIES):
         try:
-            return await call_agent(prompt)
+            clean_text, _ = await call_agent(prompt)
+            return clean_text
         except Exception as e:
             last_error = e
             await asyncio.sleep(2)
@@ -289,12 +309,12 @@ async def build_cleaner(column: str, values: list[str], profile: dict, human: st
     last_errors = []
 
     for attempt in range(1, MAX_GENERATION_ATTEMPTS + 1):
-        raw = await call_agent(prompt)
+        clean_text, raw_text = await call_agent(prompt)
         with open(os.path.join(cleaner_dir, f"RAW_RESPONSE_attempt_{attempt}.txt"), "w", encoding="utf-8") as f:
-            f.write(raw)
+            f.write(raw_text)
 
         try:
-            pkg = parse_cleaner_response(raw)
+            pkg = parse_cleaner_response(clean_text)
         except Exception as e:
             last_errors = [f"输出格式错误: {e}"]
             prompt = build_retry_prompt(column, summary, cleaner_name, profile, last_errors)
@@ -344,11 +364,11 @@ async def execute_cleaners(csv_path: str, cleaners: dict, cleaner_root: str, out
             if not errors:
                 break
             prompt = build_retry_prompt(column, info["summary"], cleaner_name, info["profile"], errors)
-            raw = await call_agent(prompt)
+            clean_text, raw_text = await call_agent(prompt)
             with open(os.path.join(cleaner_root, cleaner_name, f"RUNTIME_REPAIR_attempt_{attempt}.txt"), "w", encoding="utf-8") as f:
-                f.write(raw)
+                f.write(raw_text)
             try:
-                pkg = parse_cleaner_response(raw)
+                pkg = parse_cleaner_response(clean_text)
                 pkg_errors = validate_cleaner_package(pkg)
                 if pkg_errors:
                     errors = pkg_errors

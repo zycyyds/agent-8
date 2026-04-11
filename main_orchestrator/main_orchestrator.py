@@ -81,18 +81,21 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
 1. 调用 `run_step1_modal_recognition`：数据感知与模态识别
 2. 调用 `run_step2_3_medical_data_cleaner`：医学数据清洗、抽取、标准化与量纲统一
 3. 调用 `run_step4_data_quality_repair`：数据质量检测与自动修复
+4. 调用 `run_step5_task_oriented_clipping`：任务导向列裁剪
 
 【执行规则】
 1. 当用户输入路径时，先调用且仅调用一次 `run_step1_modal_recognition`。
 2. 在 `run_step1_modal_recognition` 成功返回后，继续调用且仅调用一次 `run_step2_3_medical_data_cleaner`。
 3. 在 `run_step2_3_medical_data_cleaner` 成功返回后，继续调用且仅调用一次 `run_step4_data_quality_repair`。
-4. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
-5. `run_step2_3_medical_data_cleaner` 会进入交互式阶段；只有当用户在该阶段输入 `quit` 后，工具才会返回。
-6. `run_step4_data_quality_repair` 默认会读取 `program/output/step2_3_results` 下最新的 `results_*` 目录作为输入。
-7. 当你收到 `run_step4_data_quality_repair` 的有效结果后，再将整个流水线结果总结输出给用户，然后结束当前任务。
-8. 你的最终总结、解释、追问、报错都必须使用中文输出；即使上游工具结果或原始医学文本是英文，也要用中文表述。
-9. 不要调用未在【当前可用步骤】中列出的工具。
-10. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
+4. 在 `run_step4_data_quality_repair` 成功返回后，继续调用且仅调用一次 `run_step5_task_oriented_clipping`。
+5. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
+6. `run_step2_3_medical_data_cleaner` 会进入交互式阶段；只有当用户在该阶段输入 `quit` 后，工具才会返回。
+7. `run_step4_data_quality_repair` 默认会读取 `program/output/step2_3_results` 下最新的 `results_*` 目录作为输入。
+8. `run_step5_task_oriented_clipping` 默认自动读取 `program/output/step4_results` 下最新的 `*_cleaned_*.csv` 作为输入。
+9. 当你收到 `run_step5_task_oriented_clipping` 的有效结果后，再将整个流水线结果总结输出给用户，然后结束当前任务。
+10. 你的最终总结、解释、追问、报错都必须使用中文输出；即使上游工具结果或原始医学文本是英文，也要用中文表述。
+11. 不要调用未在【当前可用步骤】中列出的工具。
+12. 只要工具已经返回了有效结果，就必须停止生成新的 JSON 工具调用。
 
 【ACE Playbook (来源于你的 Memory Agent)】
 {context_str}

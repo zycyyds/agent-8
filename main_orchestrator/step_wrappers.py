@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import json
 import os
@@ -5,6 +6,8 @@ import re
 import sys
 import time
 from typing import Any
+
+import pandas as pd
 
 from agentscope.agent import ReActAgent
 from agentscope.formatter import OllamaChatFormatter
@@ -550,6 +553,34 @@ def _get_default_step4_input_path(input_data: str) -> str:
     return os.path.join(_get_program_output_root(), "data")
 
 
+def _get_default_step5_input_csv() -> str:
+    step4_results_dir = os.path.join(_get_program_output_root(), "step4_results")
+    if not os.path.isdir(step4_results_dir):
+        return os.path.join(step4_results_dir, "latest_cleaned_missing.csv")
+
+    cleaned_candidates: list[str] = []
+    for name in os.listdir(step4_results_dir):
+        lower_name = name.lower()
+        if not lower_name.endswith(".csv"):
+            continue
+        if "_cleaned_" not in lower_name:
+            continue
+        cleaned_candidates.append(os.path.join(step4_results_dir, name))
+
+    if cleaned_candidates:
+        cleaned_candidates.sort(key=os.path.getmtime, reverse=True)
+        return cleaned_candidates[0]
+
+    return os.path.join(step4_results_dir, "latest_cleaned_missing.csv")
+
+
+def _get_default_step5_task_text() -> str:
+    return (
+        "Identify factors associated with mortality risk and length of stay "
+        "among hospitalized patients with cirrhosis or hepatic failure."
+    )
+
+
 def _load_step1_5_cleaner_components():
     cleaner_root = os.path.join(
         _get_project_root(),
@@ -739,13 +770,22 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
             "content_blocks": [{"type": "text", "text": summary_text}],
         }
     ]
+
+    prepare_skipped_reuse_existing_csv = (not prepared_csv) and prepared_json_count == 0 and bool(input_csv)
+    prepare_succeeded = bool(prepared_csv) or prepare_skipped_reuse_existing_csv
+    prepare_output = f"prepared_input_csv={prepared_csv} | prepared_json_count={prepared_json_count}"
+    if prepare_skipped_reuse_existing_csv:
+        prepare_output = (
+            f"prepared_input_csv=<skipped_reuse_existing_csv> | prepared_json_count=0 | input_csv={input_csv}"
+        )
+
     tool_events = [
         {
             "tool_name": "step4_prepare_input",
             "tool_input": {"input_dir": input_dir},
-            "tool_output": f"prepared_input_csv={prepared_csv} | prepared_json_count={prepared_json_count}",
-            "status": "succeeded" if prepared_csv else "failed",
-            "error": "" if prepared_csv else str(result.get('error') or "未生成可用的输入 CSV"),
+            "tool_output": prepare_output,
+            "status": "succeeded" if prepare_succeeded else "failed",
+            "error": "" if prepare_succeeded else str(result.get('error') or "未生成可用的输入 CSV"),
         },
         {
             "tool_name": "step4_resolve_input_csv",
@@ -787,6 +827,80 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
             "tool_output": f"failed_columns={result.get('failed_columns_path', '')}",
             "status": "succeeded" if result.get("failed_columns_path") else "failed",
             "error": "" if result.get("failed_columns_path") else str(result.get('error') or "未写入失败列记录"),
+        },
+    ]
+    return assistant_outputs, tool_events
+
+
+def _build_step5_summary(input_csv: str, task_text: str, result: dict[str, Any]) -> str:
+    if not result:
+        return f"Step5: 未返回结果。输入文件: {input_csv}"
+
+    if not result.get("success"):
+        return (
+            f"Step5: 任务导向裁剪失败。\n"
+            f"输入文件: {input_csv}\n"
+            f"任务描述: {task_text}\n"
+            f"错误: {result.get('error', 'unknown error')}"
+        )
+
+    return "\n".join(
+        [
+            "Step5: 任务导向裁剪完成。",
+            f"输入文件: {input_csv}",
+            f"任务描述: {task_text}",
+            f"筛选结果: {result.get('filtered_csv_path', '')}",
+            f"选择报告: {result.get('selection_report_path', '')}",
+        ]
+    )
+
+
+def _build_step5_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    input_csv = str(result.get("input_csv") or "")
+    task_text = str(result.get("task_text") or "")
+    filtered_csv_path = str(result.get("filtered_csv_path") or "")
+    selection_report_path = str(result.get("selection_report_path") or "")
+    success = bool(result.get("success"))
+
+    summary_text = (
+        f"input_csv={input_csv} | task_text={task_text} | filtered_csv_path={filtered_csv_path} | "
+        f"selection_report_path={selection_report_path} | success={success}"
+    )
+    assistant_outputs = [
+        {
+            "role": "assistant",
+            "name": "step5_runner",
+            "content_blocks": [{"type": "text", "text": summary_text}],
+        }
+    ]
+
+    run_error = "" if success else str(result.get("error") or "Step5 执行失败")
+    resolve_error = "" if input_csv else str(result.get("error") or "未找到 Step5 输入 CSV")
+    output_error = "" if (filtered_csv_path and selection_report_path) else str(result.get("error") or "未生成 Step5 输出文件")
+
+    tool_events = [
+        {
+            "tool_name": "step5_resolve_input_csv",
+            "tool_input": {},
+            "tool_output": f"input_csv={input_csv}",
+            "status": "succeeded" if input_csv else "failed",
+            "error": resolve_error,
+        },
+        {
+            "tool_name": "step5_run_task_driven_selector",
+            "tool_input": {"input_csv": input_csv, "task_text": task_text},
+            "tool_output": f"success={success}",
+            "status": "succeeded" if success else "failed",
+            "error": run_error,
+        },
+        {
+            "tool_name": "step5_write_outputs",
+            "tool_input": {"input_csv": input_csv},
+            "tool_output": (
+                f"filtered_csv_path={filtered_csv_path} | selection_report_path={selection_report_path}"
+            ),
+            "status": "succeeded" if (filtered_csv_path and selection_report_path) else "failed",
+            "error": output_error,
         },
     ]
     return assistant_outputs, tool_events
@@ -840,8 +954,8 @@ def _extract_step4_row_from_json_payload(json_path: str, payload: dict[str, Any]
 
 
 def _prepare_step4_input_dir(input_dir: str, workspace_dir: str) -> tuple[str, int]:
-    candidate_csv = []
-    candidate_json = []
+    candidate_csv: list[str] = []
+    candidate_json: list[str] = []
     for root, _, files in os.walk(input_dir):
         for name in files:
             lower_name = name.lower()
@@ -870,7 +984,6 @@ def _prepare_step4_input_dir(input_dir: str, workspace_dir: str) -> tuple[str, i
 
     os.makedirs(workspace_dir, exist_ok=True)
     prepared_csv = os.path.join(workspace_dir, "prepared_step4_input.csv")
-    import pandas as pd
     pd.DataFrame(rows).to_csv(prepared_csv, index=False)
     return prepared_csv, len(candidate_json)
 
@@ -1250,13 +1363,107 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
 
 
 async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -> ToolResponse:
-    output = "Step 5 (Mock): 完成任务导向裁剪。"
+    input_csv = _get_default_step5_input_csv()
+    task_text = _get_default_step5_task_text()
+    output_dir = _get_program_output_root()
+    started_at = time.time()
+    session_messages: list[dict[str, Any]] = []
+    session_tool_events: list[dict[str, Any]] = []
+
+    if not os.path.isfile(input_csv):
+        result = {
+            "success": False,
+            "input_csv": input_csv,
+            "task_text": task_text,
+            "filtered_csv_path": "",
+            "selection_report_path": "",
+            "error": f"Step5 输入文件不存在: {input_csv}",
+        }
+        output = _build_step5_summary(input_csv, task_text, result)
+        session_messages, session_tool_events = _build_step5_trace_payload(result)
+        _trace_collector.record_step(
+            step_name="任务导向裁剪",
+            input_data=input_csv,
+            output_content=output,
+            context=context,
+            raw_messages=session_messages,
+            full_raw_messages=session_messages,
+            tool_events=session_tool_events,
+            full_tool_events=session_tool_events,
+        )
+        memory_feedback = await report_last_step_reflection(
+            input_text=input_csv,
+            duration_seconds=0.0,
+            orchestrator_summary=output,
+            retrieved_bullet_ids=[],
+        )
+        if memory_feedback:
+            print(f"\n[Memory Supervisor Step5 反思结果]\n{memory_feedback}\n")
+        return ToolResponse(content=output)
+
+    try:
+        if _get_project_root() not in sys.path:
+            sys.path.insert(0, _get_project_root())
+        selector_module = importlib.import_module("agent_5.medical_column_selector")
+        selector_cls = getattr(selector_module, "TaskDrivenColumnSelector")
+        selector = selector_cls()
+        selection_result = await asyncio.to_thread(
+            selector.run,
+            input_csv,
+            task_text,
+            output_dir,
+        )
+
+        filtered_csv_path = str(selection_result.get("filtered_csv_path") or "")
+        selection_report_path = str(selection_result.get("selection_report_path") or "")
+        if not filtered_csv_path or not selection_report_path:
+            raise RuntimeError("Step5 未返回完整输出路径。")
+        if not os.path.isfile(filtered_csv_path):
+            raise FileNotFoundError(f"Step5 筛选结果文件不存在: {filtered_csv_path}")
+        if not os.path.isfile(selection_report_path):
+            raise FileNotFoundError(f"Step5 选择报告文件不存在: {selection_report_path}")
+
+        result = {
+            "success": True,
+            "input_csv": input_csv,
+            "task_text": task_text,
+            "filtered_csv_path": filtered_csv_path,
+            "selection_report_path": selection_report_path,
+            "error": "",
+        }
+        output = _build_step5_summary(input_csv, task_text, result)
+        session_messages, session_tool_events = _build_step5_trace_payload(result)
+    except Exception as e:
+        result = {
+            "success": False,
+            "input_csv": input_csv,
+            "task_text": task_text,
+            "filtered_csv_path": "",
+            "selection_report_path": "",
+            "error": str(e),
+        }
+        output = _build_step5_summary(input_csv, task_text, result)
+        session_messages, session_tool_events = _build_step5_trace_payload(result)
+
     _trace_collector.record_step(
         step_name="任务导向裁剪",
-        input_data=input_data,
+        input_data=input_csv,
         output_content=output,
         context=context,
+        raw_messages=session_messages,
+        full_raw_messages=session_messages,
+        tool_events=session_tool_events,
+        full_tool_events=session_tool_events,
     )
+    duration = time.time() - started_at
+    memory_feedback = await report_last_step_reflection(
+        input_text=input_csv,
+        duration_seconds=duration,
+        orchestrator_summary=output,
+        retrieved_bullet_ids=[],
+    )
+    if memory_feedback:
+        print(f"\n[Memory Supervisor Step5 反思结果]\n{memory_feedback}\n")
     return ToolResponse(content=output)
 
 
