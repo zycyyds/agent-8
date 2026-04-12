@@ -32,9 +32,10 @@ from agentscope.tool import Toolkit, ToolResponse
 # ============================================================
 # OpenAI 兼容 API（云雾）
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_BASE_URL = os.environ.get(
-    "OPENAI_BASE_URL",
-    "https://api.openai.com/v1",  # OpenAI compatible base URL
+OPENAI_BASE_URL = (
+    os.environ.get("OPENAI_BASE_URL")
+    or os.environ.get("OPENAI_API_BASE")
+    or "https://api.openai.com/v1"  # OpenAI compatible base URL
 )
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4o")
 

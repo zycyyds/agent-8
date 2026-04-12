@@ -74,7 +74,11 @@ from agentscope.tool import Toolkit, ToolResponse
 # ══════════════════════════════════════════════════════════════════
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+OPENAI_BASE_URL = (
+    os.environ.get("OPENAI_BASE_URL")
+    or os.environ.get("OPENAI_API_BASE")
+    or "https://api.openai.com/v1"
+)
 MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-4.1-mini")
 
 # ── 数据源切换：DATA_SOURCE=mimic 启用 MIMIC 模式，默认 original ──────────

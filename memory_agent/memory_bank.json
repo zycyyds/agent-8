@@ -43,6 +43,19 @@
       "status": "active"
     },
     {
+      "id": "chk-00004",
+      "content": "在执行 Step6 一致性验证前，必须显式校验 Step5 输出目录中是否存在预期的 filtered_csv 与 selection_report 文件；若文件缺失或路径不匹配，必须立即终止任务并抛出明确的依赖缺失错误，严禁依赖工具内部默认行为或尝试继续执行。",
+      "section": "validation_checklist",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T18:41:26.451976",
+      "last_used": "2026-04-12T18:41:26.451976",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "data-00001",
       "content": "在读取任务执行结果时，若编排器总结与工具实际输出存在模态数量差异，应优先采信工具输出中的具体统计，以确保数据分类的准确性。",
       "section": "data_organization",
@@ -290,6 +303,19 @@
       "status": "active"
     },
     {
+      "id": "mod-00009",
+      "content": "当版面分析检测到 'ocr+figure' 混合模态时，必须强制启动人工验证 GUI 流程，严禁跳过验证直接进行数据组织或分类。",
+      "section": "modality_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T16:04:46.354195",
+      "last_used": "2026-04-12T16:04:46.354195",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "out-00001",
       "content": "输出结论文本必须严格依据工具返回结果生成，禁止自行补充路径、准确率或统计字段。",
       "section": "output_contracts",
@@ -433,6 +459,32 @@
       "status": "active"
     },
     {
+      "id": "out-00012",
+      "content": "在执行任务导向筛选（Step 5）并调用输出写入工具时，生成的筛选结果文件路径必须显式包含当前运行时间戳（格式如 YYYYMMDD_HHMMSS），严禁使用固定文件名或仅包含日期，以确保不同运行实例的数据可追溯且互不覆盖。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T18:33:58.988909",
+      "last_used": "2026-04-12T18:33:58.988909",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00013",
+      "content": "Step7 任务完成后的最终输出摘要中，必须同时包含 CSV、JSONL 和 JSON 三种格式的数据集文件路径，严禁仅输出单一格式或遗漏任意一种格式的路径信息。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T18:50:56.019915",
+      "last_used": "2026-04-12T18:50:56.019915",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "str-00001",
       "content": "关键数据判断禁止仅依赖即时生成，必须引用既有稳定规则约束以避免重复偏差。",
       "section": "strategies_and_hard_rules",
@@ -466,6 +518,19 @@
       "harmful_count": 0,
       "created_at": "2026-04-11T21:09:35.198332",
       "last_used": "2026-04-11T21:09:35.198332",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "str-00004",
+      "content": "当数据列数超过 50 或检测到大量重复异常模式时，严禁采用‘逐列生成并执行独立清洗器’的策略；必须优先执行批量处理、优先级剪枝或合并相似清洗逻辑的机制，以避免执行时间显著增加。",
+      "section": "strategies_and_hard_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T18:25:50.029180",
+      "last_used": "2026-04-12T18:25:50.029180",
       "metadata": {
         "source": "curator"
       },
@@ -810,15 +875,41 @@
         "source": "curator"
       },
       "status": "active"
+    },
+    {
+      "id": "tool-00027",
+      "content": "当调用 step2_3_process_input 处理目录且耗时超过 100 秒时，若工具返回成功状态但核心统计字段（如 total_rows、terms_standardized）为 null，严禁直接触发单文件调试或重试；必须首先确认该工具设计契约是否仅支持文件级计数，若确认工具本身不提供行级统计，则直接采信 processed_files 作为最终指标，并强制检查输出目录中的具体结果文件以验证数据清洗效果。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T16:29:44.513330",
+      "last_used": "2026-04-12T16:29:44.513330",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00028",
+      "content": "在执行 Step7 表型/知识确认任务时，必须强制先调用 step7_load_step6_context 工具获取患者 ID 列表和 step6_rerun 状态，严禁在未确认上下文状态的情况下直接调用 step7_run_pipeline 工具。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T18:50:56.010778",
+      "last_used": "2026-04-12T18:50:56.010778",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
     }
   ],
   "statistics": {
-    "total_executions": 61,
-    "unique_strategies": 62,
-    "last_reflection": "2026-04-12T14:35:05.440024",
-    "total_bullets": 62,
-    "last_refine_at": "2026-04-12T14:35:05.439827",
+    "total_executions": 67,
+    "unique_strategies": 69,
+    "last_reflection": "2026-04-12T18:51:09.458192",
+    "total_bullets": 69,
+    "last_refine_at": "2026-04-12T18:51:09.457964",
     "duplicate_merges": 0,
-    "last_query": "/Users/mkbk/PycharmProjects/agent-8/program/output/step4_results/all_patients_cleaned_29.csv"
+    "last_query": "/Users/mkbk/PycharmProjects/agent-8/program/output/step5_results/all_patients_cleaned_189_filtered_20260412_182953.csv"
   }
 }

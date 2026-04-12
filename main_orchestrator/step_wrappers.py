@@ -1,8 +1,10 @@
 import asyncio
 import importlib
+import importlib.util
 import json
 import os
 import re
+import shutil
 import sys
 import time
 from typing import Any
@@ -597,7 +599,7 @@ def _get_default_step5_task_text() -> str:
     )
 
 
-def _load_step1_5_cleaner_components():
+def _resolve_step2_3_cleaner_root() -> str:
     candidate_roots = [
         os.path.join(_get_project_root(), "agent_2-3"),
         os.path.join(
@@ -612,6 +614,11 @@ def _load_step1_5_cleaner_components():
             "未找到 Step2_3 清洗目录，已尝试: "
             + " | ".join(candidate_roots)
         )
+    return cleaner_root
+
+
+def _load_step1_5_cleaner_components():
+    cleaner_root = _resolve_step2_3_cleaner_root()
 
     if cleaner_root not in sys.path:
         sys.path.insert(0, cleaner_root)
@@ -619,6 +626,49 @@ def _load_step1_5_cleaner_components():
     main_module = importlib.import_module("main")
     agent_module = importlib.import_module("agents.unified_processing_agent")
     return main_module.process_single_input, main_module.run_interactive_session, agent_module.UnifiedProcessingAgent
+
+
+def _load_step2_3_liver_notes_components():
+    cleaner_root = _resolve_step2_3_cleaner_root()
+
+    module_path = os.path.join(cleaner_root, "process_liver_notes.py")
+    if not os.path.isfile(module_path):
+        raise FileNotFoundError(f"未找到 liver notes 处理脚本: {module_path}")
+
+    module_name = "_step2_3_process_liver_notes"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载 liver notes 模块: {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sys.modules[module_name] = module
+    return module.setup_liver_agents, module.batch_process_liver_notes
+
+
+def _resolve_step2_3_liver_jsonl_path(data_dir: str) -> str:
+    candidates = [
+        os.path.join(data_dir, "table", "liver_patients_note", "liver_patients_note.jsonl"),
+        os.path.join(data_dir, "liver_patients_note", "table", "liver_patients_note.jsonl"),
+        os.path.join(data_dir, "table", "liver_patients_note.jsonl"),
+    ]
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return ""
+
+
+def _build_step2_3_liver_summary(data_dir: str, result_jsonl: str, result_csv: str, fields_json: str) -> str:
+    lines = [
+        "Step2_3: liver notes JSONL 专项抽取完成。",
+        f"输入目录: {data_dir}",
+        f"输出JSONL: {result_jsonl}",
+    ]
+    if result_csv:
+        lines.append(f"输出CSV: {result_csv}")
+    if fields_json:
+        lines.append(f"字段分析: {fields_json}")
+    return "\n".join(lines)
 
 
 def _summarize_step2_3_event(event: dict[str, Any]) -> str:
@@ -879,6 +929,166 @@ def _build_step5_summary(input_csv: str, task_text: str, result: dict[str, Any])
             f"选择报告: {result.get('selection_report_path', '')}",
         ]
     )
+
+
+_step67_runtime_cache: dict[str, Any] = {}
+
+
+def _load_step67_pipeline_module():
+    module_name = "agent_6_7_runtime_pipeline"
+    module_path = os.path.join(_get_project_root(), "agent_6-7", "run_step6_7_ml_pipeline.py")
+    if not os.path.isfile(module_path):
+        raise FileNotFoundError(f"未找到 Step6_7 管道文件: {module_path}")
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"无法加载 Step6_7 管道模块: {module_path}")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sys.modules[module_name] = module
+    return module
+
+
+def _resolve_latest_step5_artifacts() -> tuple[str, str]:
+    step5_dir = _get_step5_results_dir()
+    if not os.path.isdir(step5_dir):
+        return "", ""
+
+    filtered_candidates = [
+        os.path.join(step5_dir, name)
+        for name in os.listdir(step5_dir)
+        if name.lower().endswith(".csv") and "_filtered_" in name.lower()
+    ]
+    if not filtered_candidates:
+        return "", ""
+
+    filtered_candidates.sort(key=os.path.getmtime, reverse=True)
+    filtered_csv = filtered_candidates[0]
+
+    base_prefix = os.path.basename(filtered_csv)
+    marker = "_filtered_"
+    idx = base_prefix.lower().find(marker)
+    report_prefix = base_prefix[:idx] if idx >= 0 else ""
+
+    report_candidates = [
+        os.path.join(step5_dir, name)
+        for name in os.listdir(step5_dir)
+        if name.lower().endswith(".json")
+        and "_selection_report_" in name.lower()
+        and (not report_prefix or name.startswith(report_prefix + "_selection_report_"))
+    ]
+    report_candidates.sort(key=os.path.getmtime, reverse=True)
+    selection_report = report_candidates[0] if report_candidates else ""
+    return filtered_csv, selection_report
+
+
+def _build_step6_summary(result: dict[str, Any]) -> str:
+    if not result.get("success"):
+        return (
+            "Step6: 一致性验证失败。\n"
+            f"输入CSV: {result.get('filtered_csv', '')}\n"
+            f"错误: {result.get('error', 'unknown error')}"
+        )
+
+    return "\n".join(
+        [
+            "Step6: 一致性验证完成。",
+            f"输入CSV: {result.get('filtered_csv', '')}",
+            f"通过患者ID数: {len(result.get('passed_patient_ids') or [])}",
+            f"Step6文本报告: {result.get('step6_report_txt', '')}",
+            f"Step6结构化报告: {result.get('step6_report_json', '')}",
+        ]
+    )
+
+
+def _build_step6_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    success = bool(result.get("success"))
+    summary_text = (
+        f"filtered_csv={result.get('filtered_csv', '')} | selection_report={result.get('selection_report', '')} | "
+        f"passed_patients={len(result.get('passed_patient_ids') or [])} | success={success}"
+    )
+    assistant_outputs = [
+        {
+            "role": "assistant",
+            "name": "step6_runner",
+            "content_blocks": [{"type": "text", "text": summary_text}],
+        }
+    ]
+    tool_events = [
+        {
+            "tool_name": "step6_resolve_step5_inputs",
+            "tool_input": {"step5_results_dir": _get_step5_results_dir()},
+            "tool_output": f"filtered_csv={result.get('filtered_csv', '')} | selection_report={result.get('selection_report', '')}",
+            "status": "succeeded" if result.get("filtered_csv") else "failed",
+            "error": "" if result.get("filtered_csv") else str(result.get("error") or "未找到 Step5 输出 CSV"),
+        },
+        {
+            "tool_name": "step6_run_pipeline",
+            "tool_input": {"output_step6": result.get("output_step6", "")},
+            "tool_output": f"step6_report_txt={result.get('step6_report_txt', '')} | step6_report_json={result.get('step6_report_json', '')}",
+            "status": "succeeded" if success else "failed",
+            "error": "" if success else str(result.get("error") or "Step6 执行失败"),
+        },
+    ]
+    return assistant_outputs, tool_events
+
+
+def _build_step7_summary(result: dict[str, Any]) -> str:
+    if not result.get("success"):
+        return (
+            "Step7: 表型/知识确认失败。\n"
+            f"输入CSV: {result.get('filtered_csv', '')}\n"
+            f"错误: {result.get('error', 'unknown error')}"
+        )
+
+    return "\n".join(
+        [
+            "Step7: 表型/知识确认完成。",
+            f"输入CSV: {result.get('filtered_csv', '')}",
+            f"数据集CSV: {result.get('step7_dataset_csv', '')}",
+            f"数据集JSONL: {result.get('step7_dataset_jsonl', '')}",
+            f"数据集JSON: {result.get('step7_dataset_json', '')}",
+        ]
+    )
+
+
+def _build_step7_trace_payload(result: dict[str, Any], step6_rerun: bool) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    success = bool(result.get("success"))
+    summary_text = (
+        f"filtered_csv={result.get('filtered_csv', '')} | step6_rerun={step6_rerun} | "
+        f"dataset_csv={result.get('step7_dataset_csv', '')} | success={success}"
+    )
+    assistant_outputs = [
+        {
+            "role": "assistant",
+            "name": "step7_runner",
+            "content_blocks": [{"type": "text", "text": summary_text}],
+        }
+    ]
+    tool_events = [
+        {
+            "tool_name": "step7_load_step6_context",
+            "tool_input": {},
+            "tool_output": f"passed_patient_ids={result.get('passed_patient_ids', [])} | step6_rerun={step6_rerun}",
+            "status": "succeeded" if result.get("passed_patient_ids") is not None else "failed",
+            "error": "",
+        },
+        {
+            "tool_name": "step7_run_pipeline",
+            "tool_input": {"output_step7": result.get("output_step7", "")},
+            "tool_output": (
+                f"dataset_csv={result.get('step7_dataset_csv', '')} | "
+                f"dataset_jsonl={result.get('step7_dataset_jsonl', '')} | "
+                f"dataset_json={result.get('step7_dataset_json', '')}"
+            ),
+            "status": "succeeded" if success else "failed",
+            "error": "" if success else str(result.get("error") or "Step7 执行失败"),
+        },
+    ]
+    return assistant_outputs, tool_events
 
 
 def _build_step5_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -1218,47 +1428,92 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
             print(f"\n[Memory Supervisor Step2_3 反思结果]\n{memory_feedback}\n")
         return ToolResponse(content=output)
 
-    if not sys.stdin or not sys.stdin.isatty():
-        output = (
-            "Step2_3: 当前环境不支持交互式医学数据清洗。\n"
-            f"输入目录: {data_dir}\n"
-            "原因: 标准输入不是交互终端（non-TTY）。"
-        )
-        _trace_collector.record_step(
-            step_name="Step2_3 医学数据清洗与标准化",
-            input_data=data_dir,
-            output_content=output,
-            context=context,
-        )
-        memory_feedback = await report_last_step_reflection(
-            input_text=data_dir,
-            duration_seconds=0.0,
-            orchestrator_summary=output,
-            retrieved_bullet_ids=[],
-        )
-        if memory_feedback:
-            print(f"\n[Memory Supervisor Step2_3 反思结果]\n{memory_feedback}\n")
-        return ToolResponse(content=output)
-
     started_at = time.time()
     session_messages: list[dict[str, Any]] = []
     session_tool_events: list[dict[str, Any]] = []
     try:
-        _, run_interactive_session, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
-        agent = UnifiedProcessingAgent(
-            name="Step2_3MedicalCleaner",
-            use_llm=True,
-            use_umls=True,
-            verbose=False,
-        )
-        print("\n[Step2_3] 已进入交互模式。输入 'quit' 结束当前 Step2_3 并返回主编排器。")
-        result = await run_interactive_session(
-            agent=agent,
-            output_dir=output_dir,
-            show_banner=True,
-        )
-        output = _build_step2_3_summary(data_dir, result)
-        session_messages, session_tool_events = _build_step2_3_trace_payload(result)
+        liver_jsonl_path = _resolve_step2_3_liver_jsonl_path(data_dir)
+        if liver_jsonl_path:
+            print(f"[Step2_3] 检测到 liver jsonl，启用专项处理: {liver_jsonl_path}")
+            setup_liver_agents, batch_process_liver_notes = _load_step2_3_liver_notes_components()
+            med_agent, std_agent = setup_liver_agents()
+            if med_agent is None:
+                raise RuntimeError("未能初始化 liver notes 抽取 Agent（请检查 OPENAI_API_KEY / MODEL_NAME / OPENAI_API_BASE 配置）")
+
+            liver_output_dir = os.path.join(output_dir, "liver_notes")
+            liver_out_jsonl = await batch_process_liver_notes(
+                jsonl_path=liver_jsonl_path,
+                med_agent=med_agent,
+                std_agent=std_agent,
+                output_dir=liver_output_dir,
+                max_records=None,
+                verbose=True,
+            )
+            if not liver_out_jsonl or not os.path.isfile(liver_out_jsonl):
+                raise FileNotFoundError(f"liver notes 处理未生成 JSONL 输出: {liver_out_jsonl}")
+
+            liver_out_csv = liver_out_jsonl.replace(".jsonl", ".csv")
+            liver_fields_json = ""
+            liver_basename = os.path.basename(liver_out_jsonl)
+            ts_match = re.search(r"liver_notes_extracted_(\d{8}_\d{6})\.jsonl$", liver_basename)
+            if ts_match:
+                candidate_fields = os.path.join(liver_output_dir, f"extraction_fields_{ts_match.group(1)}.json")
+                if os.path.isfile(candidate_fields):
+                    liver_fields_json = candidate_fields
+
+            output = _build_step2_3_liver_summary(
+                data_dir=data_dir,
+                result_jsonl=liver_out_jsonl,
+                result_csv=liver_out_csv if os.path.isfile(liver_out_csv) else "",
+                fields_json=liver_fields_json,
+            )
+            session_messages = [
+                {
+                    "role": "assistant",
+                    "name": "step2_3_liver_notes",
+                    "content_blocks": [
+                        {
+                            "type": "text",
+                            "text": (
+                                f"mode=liver_notes | input={liver_jsonl_path} | "
+                                f"output_jsonl={liver_out_jsonl}"
+                            ),
+                        }
+                    ],
+                }
+            ]
+            session_tool_events = [
+                {
+                    "tool_name": "step2_3_liver_notes_batch_process",
+                    "tool_input": {"jsonl_path": liver_jsonl_path, "output_dir": liver_output_dir},
+                    "tool_output": output,
+                    "status": "succeeded",
+                    "error": "",
+                }
+            ]
+        else:
+            if not sys.stdin or not sys.stdin.isatty():
+                output = (
+                    "Step2_3: 当前环境不支持交互式医学数据清洗。\n"
+                    f"输入目录: {data_dir}\n"
+                    "原因: 标准输入不是交互终端（non-TTY）。"
+                )
+            else:
+                _, run_interactive_session, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
+                agent = UnifiedProcessingAgent(
+                    name="Step2_3MedicalCleaner",
+                    use_llm=True,
+                    use_umls=True,
+                    verbose=False,
+                )
+                print("\n[Step2_3] 已进入交互模式。输入 'quit' 结束当前 Step2_3 并返回主编排器。")
+                result = await run_interactive_session(
+                    agent=agent,
+                    output_dir=output_dir,
+                    show_banner=True,
+                )
+                output = _build_step2_3_summary(data_dir, result)
+                session_messages, session_tool_events = _build_step2_3_trace_payload(result)
     except Exception as e:
         output = (
             f"Step2_3: 医学数据清洗与标准化执行失败。\n"
@@ -1495,22 +1750,204 @@ async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -
 
 
 async def run_step6_consistency_verification(input_data: str, context: str = "") -> ToolResponse:
-    output = "Step 6 (Mock): 一致性验证通过。"
+    started_at = time.time()
+    filtered_csv, selection_report = _resolve_latest_step5_artifacts()
+    output_step6 = _get_step67_step6_output_dir()
+    output_step7 = _get_step67_step7_output_dir()
+
+    if not filtered_csv or not os.path.isfile(filtered_csv):
+        result = {
+            "success": False,
+            "filtered_csv": filtered_csv,
+            "selection_report": selection_report,
+            "output_step6": output_step6,
+            "output_step7": output_step7,
+            "passed_patient_ids": [],
+            "step6_report_txt": "",
+            "step6_report_json": "",
+            "error": f"未在 {_get_step5_results_dir()} 找到 Step5 输出 CSV（*_filtered_*.csv）",
+        }
+        output = _build_step6_summary(result)
+        session_messages, session_tool_events = _build_step6_trace_payload(result)
+        _trace_collector.record_step(
+            step_name="一致性验证与置信度估计",
+            input_data=filtered_csv or input_data,
+            output_content=output,
+            context=context,
+            raw_messages=session_messages,
+            full_raw_messages=session_messages,
+            tool_events=session_tool_events,
+            full_tool_events=session_tool_events,
+        )
+        memory_feedback = await report_last_step_reflection(
+            input_text=filtered_csv or input_data,
+            duration_seconds=0.0,
+            orchestrator_summary=output,
+            retrieved_bullet_ids=[],
+        )
+        if memory_feedback:
+            print(f"\n[Memory Supervisor Step6 反思结果]\n{memory_feedback}\n")
+        return ToolResponse(content=output)
+
+    runtime_overrides = {
+        "raw_csv": filtered_csv,
+        "filtered_csv": filtered_csv,
+        "selection_report": selection_report,
+        "output_step6_dir": output_step6,
+        "output_step7_dir": output_step7,
+    }
+
+    session_messages: list[dict[str, Any]] = []
+    session_tool_events: list[dict[str, Any]] = []
+    try:
+        pipeline_module = _load_step67_pipeline_module()
+        run_step6_only = getattr(pipeline_module, "run_step6_only")
+        result = await run_step6_only(runtime_overrides=runtime_overrides)
+        result["filtered_csv"] = filtered_csv
+        result["selection_report"] = selection_report
+
+        if not os.path.isfile(str(result.get("step6_report_txt") or "")):
+            raise FileNotFoundError(f"Step6 文本报告不存在: {result.get('step6_report_txt', '')}")
+        if not os.path.isfile(str(result.get("step6_report_json") or "")):
+            raise FileNotFoundError(f"Step6 JSON 报告不存在: {result.get('step6_report_json', '')}")
+
+        result["success"] = True
+        result["error"] = ""
+        _step67_runtime_cache.clear()
+        _step67_runtime_cache.update({
+            "runtime_overrides": runtime_overrides,
+            "passed_patient_ids": result.get("passed_patient_ids") or [],
+            "step6_result": result,
+        })
+        output = _build_step6_summary(result)
+        session_messages, session_tool_events = _build_step6_trace_payload(result)
+    except Exception as e:
+        result = {
+            "success": False,
+            "filtered_csv": filtered_csv,
+            "selection_report": selection_report,
+            "output_step6": output_step6,
+            "output_step7": output_step7,
+            "passed_patient_ids": [],
+            "step6_report_txt": "",
+            "step6_report_json": "",
+            "error": str(e),
+        }
+        output = _build_step6_summary(result)
+        session_messages, session_tool_events = _build_step6_trace_payload(result)
+
     _trace_collector.record_step(
         step_name="一致性验证与置信度估计",
-        input_data=input_data,
+        input_data=filtered_csv,
         output_content=output,
         context=context,
+        raw_messages=session_messages,
+        full_raw_messages=session_messages,
+        tool_events=session_tool_events,
+        full_tool_events=session_tool_events,
     )
+    duration = time.time() - started_at
+    memory_feedback = await report_last_step_reflection(
+        input_text=filtered_csv,
+        duration_seconds=duration,
+        orchestrator_summary=output,
+        retrieved_bullet_ids=[],
+    )
+    if memory_feedback:
+        print(f"\n[Memory Supervisor Step6 反思结果]\n{memory_feedback}\n")
     return ToolResponse(content=output)
 
 
 async def run_step7_phenotype_knowledge_confirmation(input_data: str, context: str = "") -> ToolResponse:
-    output = "Step 7 (Mock): 最终表型知识确认完成。"
+    started_at = time.time()
+    filtered_csv, selection_report = _resolve_latest_step5_artifacts()
+    output_step6 = _get_step67_step6_output_dir()
+    output_step7 = _get_step67_step7_output_dir()
+
+    step6_rerun = False
+    runtime_overrides = _step67_runtime_cache.get("runtime_overrides") or {
+        "raw_csv": filtered_csv,
+        "filtered_csv": filtered_csv,
+        "selection_report": selection_report,
+        "output_step6_dir": output_step6,
+        "output_step7_dir": output_step7,
+    }
+
+    passed_patient_ids = list(_step67_runtime_cache.get("passed_patient_ids") or [])
+
+    session_messages: list[dict[str, Any]] = []
+    session_tool_events: list[dict[str, Any]] = []
+    try:
+        if not filtered_csv or not os.path.isfile(filtered_csv):
+            raise FileNotFoundError(f"未在 {_get_step5_results_dir()} 找到 Step5 输出 CSV（*_filtered_*.csv）")
+        if not selection_report or not os.path.isfile(selection_report):
+            raise FileNotFoundError(f"未在 {_get_step5_results_dir()} 找到 Step5 输出报告（*_selection_report_*.json）")
+
+        pipeline_module = _load_step67_pipeline_module()
+
+        if not passed_patient_ids:
+            step6_rerun = True
+            run_step6_only = getattr(pipeline_module, "run_step6_only")
+            step6_result = await run_step6_only(runtime_overrides=runtime_overrides)
+            passed_patient_ids = list(step6_result.get("passed_patient_ids") or [])
+
+        run_step7_only = getattr(pipeline_module, "run_step7_only")
+        result = await run_step7_only(
+            passed_patient_ids=passed_patient_ids,
+            runtime_overrides=runtime_overrides,
+        )
+        result["filtered_csv"] = filtered_csv
+        result["selection_report"] = selection_report
+
+        if not os.path.isfile(str(result.get("step7_dataset_csv") or "")):
+            raise FileNotFoundError(f"Step7 CSV 数据集不存在: {result.get('step7_dataset_csv', '')}")
+        if not os.path.isfile(str(result.get("step7_dataset_jsonl") or "")):
+            raise FileNotFoundError(f"Step7 JSONL 数据集不存在: {result.get('step7_dataset_jsonl', '')}")
+        if not os.path.isfile(str(result.get("step7_dataset_json") or "")):
+            raise FileNotFoundError(f"Step7 JSON 数据集不存在: {result.get('step7_dataset_json', '')}")
+
+        result["success"] = True
+        result["error"] = ""
+        _step67_runtime_cache.clear()
+        _step67_runtime_cache.update({
+            "runtime_overrides": runtime_overrides,
+            "passed_patient_ids": result.get("passed_patient_ids") or passed_patient_ids,
+            "step7_result": result,
+        })
+        output = _build_step7_summary(result)
+        session_messages, session_tool_events = _build_step7_trace_payload(result, step6_rerun=step6_rerun)
+    except Exception as e:
+        result = {
+            "success": False,
+            "filtered_csv": filtered_csv,
+            "selection_report": selection_report,
+            "output_step7": output_step7,
+            "step7_dataset_csv": "",
+            "step7_dataset_jsonl": "",
+            "step7_dataset_json": "",
+            "passed_patient_ids": passed_patient_ids,
+            "error": str(e),
+        }
+        output = _build_step7_summary(result)
+        session_messages, session_tool_events = _build_step7_trace_payload(result, step6_rerun=step6_rerun)
+
     _trace_collector.record_step(
         step_name="表型/知识确认",
-        input_data=input_data,
+        input_data=filtered_csv,
         output_content=output,
         context=context,
+        raw_messages=session_messages,
+        full_raw_messages=session_messages,
+        tool_events=session_tool_events,
+        full_tool_events=session_tool_events,
     )
+    duration = time.time() - started_at
+    memory_feedback = await report_last_step_reflection(
+        input_text=filtered_csv,
+        duration_seconds=duration,
+        orchestrator_summary=output,
+        retrieved_bullet_ids=[],
+    )
+    if memory_feedback:
+        print(f"\n[Memory Supervisor Step7 反思结果]\n{memory_feedback}\n")
     return ToolResponse(content=output)

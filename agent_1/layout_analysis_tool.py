@@ -1373,12 +1373,14 @@ def collect_image_files(target_path: str) -> ToolResponse:
             except Exception as e:
                 print(f"Error copying text file {full_path}: {e}")
         elif ext in ext_table:
-            # Structure: program/output/data/{ID}/table/{category}/{filename}
+            # Structure (for Step2_3 compatibility):
+            # program/output/data/table/{category}/{filename}
+            # Step2_3 的 table_reader 会在 <data_dir>/table 下递归查找 Excel。
             if category:
-                dst = os.path.join(data_root, record_id, "table", category, fname)
+                dst = os.path.join(table_root, category, fname)
             else:
-                dst = os.path.join(data_root, record_id, "table", fname)
-                
+                dst = os.path.join(table_root, fname)
+
             # 处理表格文件（删除空列 & 权限修复）
             if _process_table_file(full_path, dst):
                 stats["table"] += 1
