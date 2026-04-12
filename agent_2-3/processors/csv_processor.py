@@ -24,9 +24,6 @@ parent_dir = os.path.dirname(module_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-src_path = os.path.abspath(os.path.join(parent_dir, "../../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
 
 from config.settings import register_no_thinking_print_hook
 from tools.csv_reader import read_csv_data, analyze_columns_for_standardization, read_csv_sample

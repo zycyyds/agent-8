@@ -536,6 +536,22 @@ def _get_program_output_root() -> str:
     return os.path.join(_get_project_root(), "program", "output")
 
 
+def _get_step5_results_dir() -> str:
+    return os.path.join(_get_program_output_root(), "step5_results")
+
+
+def _get_step67_results_dir() -> str:
+    return os.path.join(_get_program_output_root(), "step6-7_results")
+
+
+def _get_step67_step6_output_dir() -> str:
+    return os.path.join(_get_step67_results_dir(), "step6")
+
+
+def _get_step67_step7_output_dir() -> str:
+    return os.path.join(_get_step67_results_dir(), "step7")
+
+
 def _get_default_step2_3_input_path(input_data: str) -> str:
     if input_data and os.path.isdir(str(input_data)):
         return str(input_data)
@@ -582,11 +598,21 @@ def _get_default_step5_task_text() -> str:
 
 
 def _load_step1_5_cleaner_components():
-    cleaner_root = os.path.join(
-        _get_project_root(),
-        "medical-data-pipeline-public",
-        "step1_5_medical_data_cleaner",
-    )
+    candidate_roots = [
+        os.path.join(_get_project_root(), "agent_2-3"),
+        os.path.join(
+            _get_project_root(),
+            "medical-data-pipeline-public",
+            "step1_5_medical_data_cleaner",
+        ),
+    ]
+    cleaner_root = next((path for path in candidate_roots if os.path.isdir(path)), "")
+    if not cleaner_root:
+        raise FileNotFoundError(
+            "未找到 Step2_3 清洗目录，已尝试: "
+            + " | ".join(candidate_roots)
+        )
+
     if cleaner_root not in sys.path:
         sys.path.insert(0, cleaner_root)
 
@@ -1365,7 +1391,8 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
 async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -> ToolResponse:
     input_csv = _get_default_step5_input_csv()
     task_text = _get_default_step5_task_text()
-    output_dir = _get_program_output_root()
+    output_dir = _get_step5_results_dir()
+    os.makedirs(output_dir, exist_ok=True)
     started_at = time.time()
     session_messages: list[dict[str, Any]] = []
     session_tool_events: list[dict[str, Any]] = []

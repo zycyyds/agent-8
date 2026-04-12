@@ -1,68 +1,91 @@
-# Multi-Agent Layout Analysis System 🧠
+# Multi-Agent Medical Data Pipeline
 
-这是一个基于 **AgentScope** 和 **ACE (Agentic Context Engineering)** 架构实现的多智能体文档版面分析系统。
+这是一个面向医疗数据处理的多智能体项目，当前代码以 `main_orchestrator` 为主编排入口，串联 Step1~Step5，并在每个步骤后接入 `memory_agent` 反思闭环。
 
-本系统不仅能够自动化处理图像/文档的布局识别和分类，还具备**自我反思与记忆（Memory Agent）**的能力，能够在一次次执行中提取经验规则（Bullets），并在下一次处理中变得更聪明。
+## 当前状态（以代码为准）
 
-## 🌟 核心特性
+- 已接入主链路：**Step1 → Step2_3 → Step4 → Step5**
+- `memory_agent` 已接入主链路：每步骤执行后都会回传 trace 做反思
+- `agent_6-7` 已有完整实现，但**目前未接入主编排器**（主编排中的 Step6/7 仍是占位）
 
-- **视觉版面分析**：基于 YOLO 等视觉模型（封装在 `agent-1` 中），对输入的图像提取表格、图表、OCR 文本块。
-- **人机协同验证**：智能体会遇到复杂长文本或包含图表的页面，并自动弹窗请求人类介入复核。
-- **ACE 三角色反思架构**：
-  - **Generator（生成器/执行器）**：即 `agent-1`。获取之前积累的最佳实践（Context Playbook），根据提示词行动。
-  - **Reflector（反思器）**：在每次成功或失败的视觉分析后，反思哪些经验起到了作用，哪些产生了误导，并提取新的经验规则。
-  - **Curator（整理器）**：提纯反思器得到的新经验（Delta），合并到持久化的长期记忆库 `memory_bank.json` 中，并去除低效规则。
-
-## 📂 目录结构
+## 目录概览
 
 ```text
-├── agent-1/                     # Generator 智能体 (布局分析工具集与主循环)
-│   ├── main_layout_example.py   # 🏆 主程序入口 (日常运行只运行此文件)
-│   ├── layout_analysis_tool.py  # 版面分析的具体视觉推理库
-│   └── agentscope_tools.json    # AgentScope 工具定义
-├── memory_agent/                # Reflector & Curator 智能体记忆系统
-│   ├── core/
-│   │   ├── playbook.py          # 维护原子化策略卡片 (Bullets) 及 Playbook 结构
-│   │   ├── reflector.py         # 增量反思，评估策略卡片有效性
-│   │   └── curator.py           # 合并 Delta, 整理和精简记忆库
-│   ├── integration.py           # 对外提供注入 Context 和回传 Record 的接口
-│   └── main.py                  # (测试用) 纯架构演示脚本
-├── agent_1/doclayout_yolo/      # 底层依赖的视觉检测模型结构
-└── data/                        # 数据集源及运行中产生的文件缓存
+agent_1/                          # Step1 模态识别与版面分析
+agent_4/                          # Step4 数据质量修复
+agent_5/                          # Step5 任务导向列筛选
+main_orchestrator/                # 主编排器与步骤包装层
+memory_agent/                     # 反思与记忆库（playbook / memory_bank）
+agent_2-3/                        # Step2_3 真实执行引擎（已接入）
+agent_6-7/                        # Step6+7 独立流水线（未接入主编排）
+program/output/                    # 主链路中间产物
+output/                            # Step1 产物等
+rawdata/                           # 原始输入数据
+cs                                 # 常用启动脚本
 ```
 
-## 🚀 快速开始
+## 快速开始
 
-### 运行主智能体（带记忆能力）
-
-在真实场景下，你只需要运行 `agent-1` 即可，**记忆闭环会在后台自动发生**：
+### 1) 运行主编排器（推荐）
 
 ```bash
-cd agent-1
-python main_layout_example.py
+source cs
 ```
 
-- 在命令行中输入图像或目录的路径。
-- 智能体会自动：
-  1. 调用 `memory_agent` 提取当前的最佳策略。
-  2. 调用图像分割、推理工具处理图片。
-  3. 执行完毕后将反馈回传给记忆系统，反思并记录本次表现，持久化到 `memory_agent/memory_bank.json` 中。
+`cs` 会设置模型环境变量、激活 conda 环境并启动 `main_orchestrator/main_orchestrator.py`。
 
-### 运行记忆架构演示 (仅供测试原理)
+也可手动运行：
 
-如果你想了解 ACE (Generator -> Reflector -> Curator) 三角色的运作时序图与处理结果，可以独立运行演示脚本：
+```bash
+export OLLAMA_HOST=http://<your-ollama-host>:11434
+cd main_orchestrator
+conda activate py310
+python main_orchestrator.py
+```
+
+### 2) 运行记忆模块演示
 
 ```bash
 cd memory_agent
 python main.py
 ```
 
-## 🧠 记忆系统数据流 (ACE Framework)
+### 3) 单独运行 Step6+7（独立流水线）
 
-1. **`get_playbook_context()`**：`agent-1` 在每次拿到文件后，第一时间从这里拉取 `#历史积累的策略与经验提示`，喂给系统提示词（`sys_prompt`）。
-2. **`record_from_first_agent(...)`**：`agent-1` 处理完全部工作（无论是异常退出还是成功分析），把所有的痕迹传回这里。
-3. **`Reflector.analyze()`**：大模型反思这轮痕迹：“上一次的规矩有帮到忙吗？有哪些没用？这次有没有领悟出新规矩？” -> 产生一个 `ReflectionDelta` (增量)。
-4. **`Curator.process_new_execution()`**：将这些增量计数加到具体的 `Bullet`（策略卡片）中，一旦新知识经过反复验证有效，会持续为后续任务保驾护航。
+```bash
+cd agent_6-7
+python run_step6_7_ml_pipeline.py
+```
 
----
-*Powered by AgentScope & Ollama*
+> 说明：该脚本会顺序执行 Step6 和 Step7，但当前不会被 `main_orchestrator` 自动调用。
+
+## 主编排链路输入输出
+
+- Step1 输入：用户提供的文件/目录路径
+- Step1 输出：`program/output/data`（供 Step2_3 读取）
+- Step2_3 输出：`program/output/step2_3_results`
+- Step4 输出：`program/output/step4_results`
+- Step5 输出：`program/output/`
+  - `*_filtered_时间戳.csv`
+  - `*_selection_report_时间戳.json`
+
+## Step6_7 独立流水线输入输出
+
+目录：`agent_6-7`
+
+- 输入（Original 模式）：
+  - `data/副本all_patients.csv`
+  - `data/副本all_patients_filtered_*.csv`（自动取最新）
+  - `data/副本all_patients_selection_report_*.json`（自动取最新）
+- 输入（MIMIC 模式）：
+  - `data/mimic/liver_notes_extracted_filtered*.csv`
+  - `data/mimic/liver_notes_extracted_selection_report*.json`
+- ICD 标准库：优先读取环境变量 `ICD10_XLSX`；未设置时按脚本内候选路径自动查找
+- 输出：
+  - Step6：`output_step6/` 或 `output_step6_mimic/`
+  - Step7：`output_step7/` 或 `output_step7_mimic/`
+
+## 备注
+
+- 目前仓库未提供统一的测试 / lint 命令入口。
+- 文档若与代码不一致，请优先以 `main_orchestrator/step_wrappers.py` 与各步骤主脚本为准。

@@ -10,10 +10,6 @@ import sys
 from typing import Dict, Optional, Tuple, Any
 from functools import lru_cache
 
-# Ensure import paths
-src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
 
 try:
     from agentscope.model import OpenAIChatModel

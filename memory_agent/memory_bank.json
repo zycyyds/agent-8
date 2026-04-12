@@ -173,6 +173,19 @@
       "status": "active"
     },
     {
+      "id": "fail-00006",
+      "content": "当数据清洗工具返回状态为 succeeded，但核心统计字段 processed_files 为 0 且 failed_files 大于 0 时，必须判定为处理失败并触发错误处理机制，严禁仅因工具调用返回 succeeded 而认为任务完成或生成成功摘要。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T12:54:59.026143",
+      "last_used": "2026-04-12T12:54:59.026143",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "mod-00001",
       "content": "当版面分析识别出 `ocr+figure` 混合模态时，必须强制触发人工验证流程（GUI），严禁在未获得验证结果前直接进行数据清洗或组织，以确保复杂图表数据的准确性。",
       "section": "modality_rules",
@@ -258,6 +271,19 @@
       "harmful_count": 0,
       "created_at": "2026-04-11T20:26:18.107357",
       "last_used": "2026-04-11T20:26:18.107357",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "mod-00008",
+      "content": "当版面分析检测到'ocr+figure'混合模态时，必须强制阻断自动归档流程并启动人工验证 GUI，且最终数据整理工具必须读取验证后的修正结果（如降级为纯 ocr），严禁直接使用初始自动检测结果进行归档。",
+      "section": "modality_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T12:45:08.031652",
+      "last_used": "2026-04-12T12:45:08.031652",
       "metadata": {
         "source": "curator"
       },
@@ -375,6 +401,32 @@
       "harmful_count": 0,
       "created_at": "2026-04-11T21:20:14.276965",
       "last_used": "2026-04-11T21:20:14.276965",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00010",
+      "content": "在数据清洗流水线任务中，若清洗器生成阶段存在失败（generation_failures > 0），即使最终执行无运行时错误且生成了结果文件，必须在最终输出摘要中显式记录失败数量及受影响的列名，严禁仅报告最终质量评分而忽略生成阶段的异常，以便下游任务评估数据完整性风险。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T14:25:29.579642",
+      "last_used": "2026-04-12T14:25:29.579642",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "out-00011",
+      "content": "在执行任务导向裁剪任务后，最终输出必须显式包含筛选后的数据文件路径和选择报告文件路径，严禁仅输出单一结果或省略报告路径，以确保下游步骤可直接复用筛选结果与决策依据。",
+      "section": "output_contracts",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T14:34:52.093815",
+      "last_used": "2026-04-12T14:34:52.093815",
       "metadata": {
         "source": "curator"
       },
@@ -693,15 +745,80 @@
         "source": "curator"
       },
       "status": "active"
+    },
+    {
+      "id": "tool-00022",
+      "content": "在调用任何依赖大语言模型（LLM）的工具前，必须显式校验工具内部配置的模型名称（如 'gpt-5.4-mini'）在当前运行环境中是否有效且已注册；若模型名称未知或环境不支持，必须立即终止调用并抛出明确的‘模型标识无效’错误，严禁直接发起请求导致 502 内部服务器错误。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T13:01:57.981407",
+      "last_used": "2026-04-12T13:01:57.981407",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00023",
+      "content": "当调用 Organize Dataset By Modality 工具处理包含混合模态（ocr+figure）的图片时，必须将人工验证 GUI 生成的修正结果 JSON 文件路径作为输入参数，严禁直接使用初始版面分析的自动检测结果文件，以确保工具读取的是经人工确认的最终模态分类。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T13:19:51.726223",
+      "last_used": "2026-04-12T13:19:51.726223",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00024",
+      "content": "当调用 Organize Dataset By Modality 工具且输入数据包含经人工验证的混合模态图片时，必须显式设置 with_segmentation=True 参数，以触发对图片中 Figure 区域的自动裁剪与保存，严禁在未启用分割功能的情况下直接归档混合模态图片。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T13:19:51.739627",
+      "last_used": "2026-04-12T13:19:51.739627",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00025",
+      "content": "当调用 step2_3_process_input 处理目录且工具返回 processed_files 大于 0 但核心清洗指标（terms_standardized 或 values_normalized）为 null 时，严禁直接判定任务成功或结束会话；必须立即选取目录内首个文件单独调用工具进行验证，以区分是工具设计仅支持文件级计数还是聚合逻辑异常，仅当单文件验证确认工具确实不返回行级统计时，方可采信文件级计数作为最终指标。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T13:40:51.656849",
+      "last_used": "2026-04-12T13:40:51.656849",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00026",
+      "content": "在调用任务导向筛选工具（如 step5_run_task_driven_selector）时，必须将包含具体研究目标（如死亡率风险、住院时长等指标）的完整任务描述文本作为核心参数传入，严禁仅传递文件名或默认配置，以确保筛选逻辑与研究目标严格对齐。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-12T14:34:52.084040",
+      "last_used": "2026-04-12T14:34:52.084040",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
     }
   ],
   "statistics": {
-    "total_executions": 54,
-    "unique_strategies": 53,
-    "last_reflection": "2026-04-11T21:20:31.305877",
-    "total_bullets": 53,
-    "last_refine_at": "2026-04-11T21:20:31.305728",
+    "total_executions": 61,
+    "unique_strategies": 62,
+    "last_reflection": "2026-04-12T14:35:05.440024",
+    "total_bullets": 62,
+    "last_refine_at": "2026-04-12T14:35:05.439827",
     "duplicate_merges": 0,
-    "last_query": "/Users/mkbk/PycharmProjects/agent-8/program/output/step4_results/all_patients_cleaned_35.csv"
+    "last_query": "/Users/mkbk/PycharmProjects/agent-8/program/output/step4_results/all_patients_cleaned_29.csv"
   }
 }

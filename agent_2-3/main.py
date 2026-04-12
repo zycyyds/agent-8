@@ -35,9 +35,6 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, current_dir)
 sys.path.insert(0, parent_dir)
 
-src_path = os.path.abspath(os.path.join(parent_dir, "../../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
 
 from agents.unified_processing_agent import UnifiedProcessingAgent, process_medical_data
 from agents.data_type_detector_agent import DataTypeDetectorAgent

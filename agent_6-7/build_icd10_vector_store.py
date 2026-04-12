@@ -2,7 +2,7 @@
 """
 从 ICD-10.xlsx 构建中文 BERT 向量库（一次性离线运行，供 Step 6/7 管道复用）
 
-输出目录（默认）: step6&7/data/icd10_bert_index/
+输出目录（默认）: agent_6-7/data/icd10_bert_index/
   - embeddings.npy   float32 (N, D)，L2 归一化，便于点积=余弦相似度
   - icd_codes.npy      诊断编码
   - icd_names.npy      诊断名称（与 xlsx 一致）
@@ -12,7 +12,7 @@
   pip install sentence-transformers torch openpyxl pandas numpy
 
 用法:
-  cd step6&7 && python build_icd10_vector_store.py
+  cd agent_6-7 && python build_icd10_vector_store.py
   ICD10_BERT_MODEL=BAAI/bge-small-zh-v1.5 python build_icd10_vector_store.py
 
 若无法访问 HuggingFace，可先从魔搭下载到本地再建库:
@@ -34,7 +34,26 @@ import pandas as pd
 # 与 run_step6_7_ml_pipeline.py 一致的路径
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _DATA_DIR = os.path.join(_SCRIPT_DIR, "data")
-_ICD10_XLSX = os.path.join(_SCRIPT_DIR, "..", "ICD-10.xlsx")
+
+
+def _resolve_icd10_xlsx() -> str:
+    env_path = os.environ.get("ICD10_XLSX", "").strip()
+    candidates = [
+        env_path,
+        os.path.join(_SCRIPT_DIR, "ICD-10.xlsx"),
+        os.path.join(_SCRIPT_DIR, "..", "ICD-10.xlsx"),
+        os.path.join(os.path.dirname(_SCRIPT_DIR), "ICD-10.xlsx"),
+    ]
+    for path in candidates:
+        if not path:
+            continue
+        abs_path = os.path.abspath(path)
+        if os.path.isfile(abs_path):
+            return abs_path
+    return os.path.abspath(os.path.join(_SCRIPT_DIR, "ICD-10.xlsx"))
+
+
+_ICD10_XLSX = _resolve_icd10_xlsx()
 _DEFAULT_OUT = os.path.join(_DATA_DIR, "icd10_bert_index")
 _DEFAULT_MODEL = os.environ.get("ICD10_BERT_MODEL", "BAAI/bge-small-zh-v1.5")
 

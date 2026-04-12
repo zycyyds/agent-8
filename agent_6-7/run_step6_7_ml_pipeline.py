@@ -44,7 +44,7 @@ ICD-10 查询链路
   python run_step6_7_ml_pipeline.py
 
 向量库构建（首次或 xlsx/模型变更后）:
-  cd step6&7 && pip install sentence-transformers torch
+  cd agent_6-7 && pip install sentence-transformers torch
   python build_icd10_vector_store.py
 """
 
@@ -88,17 +88,37 @@ _mimic_files_exist = os.path.isdir(_MIMIC_DATA_DIR) and any(
 )
 _default_source = "mimic" if _mimic_files_exist else "original"
 DATA_SOURCE = os.environ.get("DATA_SOURCE", _default_source).lower()
-_IS_MIMIC   = DATA_SOURCE == "mimic"
+_IS_MIMIC = DATA_SOURCE == "mimic"
 
 if _IS_MIMIC:
-    DATA_DIR       = os.path.join(_SCRIPT_DIR, "data", "mimic")
+    DATA_DIR = os.path.join(_SCRIPT_DIR, "data", "mimic")
     PATIENT_ID_COL = "record_index"   # MIMIC 用 record_index 标识患者/住院
 else:
-    DATA_DIR       = os.path.join(_SCRIPT_DIR, "data")
+    DATA_DIR = os.path.join(_SCRIPT_DIR, "data")
     PATIENT_ID_COL = "patient_id"
 
-# ICD-10 本地库路径（相对于脚本父目录）
-ICD10_XLSX = os.path.join(_SCRIPT_DIR, "..", "ICD-10.xlsx")
+
+# ICD-10 本地库路径（可由 ICD10_XLSX 环境变量覆盖）
+def _resolve_icd10_xlsx() -> str:
+    env_path = os.environ.get("ICD10_XLSX", "").strip()
+    candidates = [
+        env_path,
+        os.path.join(_SCRIPT_DIR, "ICD-10.xlsx"),
+        os.path.join(_SCRIPT_DIR, "..", "ICD-10.xlsx"),
+        os.path.join(os.path.dirname(_SCRIPT_DIR), "ICD-10.xlsx"),
+    ]
+    for path in candidates:
+        if not path:
+            continue
+        abs_path = os.path.abspath(path)
+        if os.path.isfile(abs_path):
+            return abs_path
+    fallback = os.path.abspath(candidates[1])
+    print(f"[ICD-10本地库] 未找到 ICD-10.xlsx，当前默认路径: {fallback}。可通过 ICD10_XLSX 环境变量指定。")
+    return fallback
+
+
+ICD10_XLSX = _resolve_icd10_xlsx()
 # BERT 向量库目录（由 build_icd10_vector_store.py 生成）
 ICD10_VECTOR_DIR = os.path.join(_SCRIPT_DIR, "data", "icd10_bert_index")
 ICD10_USE_BERT = os.environ.get("ICD10_USE_BERT", "1").lower() not in ("0", "false", "no")
@@ -115,21 +135,92 @@ def _find_latest(prefix: str, suffix: str, search_dir: str | None = None) -> str
     return os.path.join(d, sorted(candidates)[-1])
 
 
-if _IS_MIMIC:
-    FILTERED_CSV     = _find_latest("liver_notes_extracted_filtered", ".csv")
-    SELECTION_REPORT = _find_latest("liver_notes_extracted_selection_report", ".json")
-    RAW_CSV          = FILTERED_CSV   # MIMIC 无独立原始文件，以筛选后文件代替
-    OUTPUT_STEP6     = os.path.join(_SCRIPT_DIR, "output_step6_mimic")
-    OUTPUT_STEP7     = os.path.join(_SCRIPT_DIR, "output_step7_mimic")
-else:
-    RAW_CSV          = os.path.join(DATA_DIR, "副本all_patients.csv")
-    FILTERED_CSV     = _find_latest("副本all_patients_filtered", ".csv")
-    SELECTION_REPORT = _find_latest("副本all_patients_selection_report", ".json")
-    OUTPUT_STEP6     = os.path.join(_SCRIPT_DIR, "output_step6")
-    OUTPUT_STEP7     = os.path.join(_SCRIPT_DIR, "output_step7")
+def _safe_find_latest(prefix: str, suffix: str, search_dir: str | None = None) -> str:
+    try:
+        return _find_latest(prefix, suffix, search_dir)
+    except Exception:
+        return ""
 
-os.makedirs(OUTPUT_STEP6, exist_ok=True)
-os.makedirs(OUTPUT_STEP7, exist_ok=True)
+
+def _resolve_default_runtime_paths() -> dict[str, str]:
+    if _IS_MIMIC:
+        filtered_csv = _safe_find_latest("liver_notes_extracted_filtered", ".csv")
+        selection_report = _safe_find_latest("liver_notes_extracted_selection_report", ".json")
+        raw_csv = filtered_csv
+        output_step6 = os.path.join(_SCRIPT_DIR, "output_step6_mimic")
+        output_step7 = os.path.join(_SCRIPT_DIR, "output_step7_mimic")
+    else:
+        raw_csv = os.path.join(DATA_DIR, "副本all_patients.csv")
+        filtered_csv = _safe_find_latest("副本all_patients_filtered", ".csv")
+        selection_report = _safe_find_latest("副本all_patients_selection_report", ".json")
+        output_step6 = os.path.join(_SCRIPT_DIR, "output_step6")
+        output_step7 = os.path.join(_SCRIPT_DIR, "output_step7")
+
+    return {
+        "raw_csv": raw_csv,
+        "filtered_csv": filtered_csv,
+        "selection_report": selection_report,
+        "output_step6": output_step6,
+        "output_step7": output_step7,
+    }
+
+
+def configure_runtime(runtime_overrides: dict[str, Any] | None = None) -> dict[str, str]:
+    global RAW_CSV, FILTERED_CSV, SELECTION_REPORT, OUTPUT_STEP6, OUTPUT_STEP7
+
+    defaults = _resolve_default_runtime_paths()
+    overrides = runtime_overrides or {}
+
+    raw_csv = str(overrides.get("raw_csv") or defaults.get("raw_csv") or "").strip()
+    filtered_csv = str(overrides.get("filtered_csv") or defaults.get("filtered_csv") or "").strip()
+    selection_report = str(overrides.get("selection_report") or defaults.get("selection_report") or "").strip()
+    output_step6 = str(overrides.get("output_step6_dir") or defaults.get("output_step6") or "").strip()
+    output_step7 = str(overrides.get("output_step7_dir") or defaults.get("output_step7") or "").strip()
+
+    if filtered_csv:
+        filtered_csv = os.path.abspath(filtered_csv)
+    if raw_csv:
+        raw_csv = os.path.abspath(raw_csv)
+    if selection_report:
+        selection_report = os.path.abspath(selection_report)
+    if output_step6:
+        output_step6 = os.path.abspath(output_step6)
+    if output_step7:
+        output_step7 = os.path.abspath(output_step7)
+
+    if filtered_csv and (not raw_csv or not os.path.isfile(raw_csv)):
+        raw_csv = filtered_csv
+
+    RAW_CSV = raw_csv
+    FILTERED_CSV = filtered_csv
+    SELECTION_REPORT = selection_report
+    OUTPUT_STEP6 = output_step6
+    OUTPUT_STEP7 = output_step7
+
+    if OUTPUT_STEP6:
+        os.makedirs(OUTPUT_STEP6, exist_ok=True)
+    if OUTPUT_STEP7:
+        os.makedirs(OUTPUT_STEP7, exist_ok=True)
+
+    return {
+        "raw_csv": RAW_CSV,
+        "filtered_csv": FILTERED_CSV,
+        "selection_report": SELECTION_REPORT,
+        "output_step6": OUTPUT_STEP6,
+        "output_step7": OUTPUT_STEP7,
+    }
+
+
+def _validate_runtime_inputs(require_selection_report: bool = False) -> None:
+    if not FILTERED_CSV or not os.path.isfile(FILTERED_CSV):
+        raise FileNotFoundError(f"Step6/7 输入 filtered_csv 不存在: {FILTERED_CSV}")
+    if not RAW_CSV or not os.path.isfile(RAW_CSV):
+        raise FileNotFoundError(f"Step6 输入 raw_csv 不存在: {RAW_CSV}")
+    if require_selection_report and (not SELECTION_REPORT or not os.path.isfile(SELECTION_REPORT)):
+        raise FileNotFoundError(f"Step7 输入 selection_report 不存在: {SELECTION_REPORT}")
+
+
+_DEFAULT_RUNTIME_PATHS = configure_runtime(None)
 
 CONFIDENCE_THRESHOLD = 0.70
 
@@ -1984,23 +2075,42 @@ def _extract_msg_text(msg: Msg) -> str:
 
 
 def _parse_passed_ids(text: str) -> list[str]:
-    """从 Step 6 输出解析 PASSED_PATIENTS 列表，失败则返回全部患者。"""
+    """从 Step 6 输出解析 PASSED_PATIENTS 列表，失败则回退为全部患者。"""
     m = re.search(r"PASSED_PATIENTS:\s*\[([^\]]+)\]", text)
     if m:
         ids = re.findall(r"[\d]+", m.group(1))
         if ids:
             return ids
-    raw = _read_data(RAW_CSV)
-    return [str(p) for p in raw["patient_id"].unique()]
+    try:
+        raw = _read_data(RAW_CSV)
+        return [str(p) for p in raw["patient_id"].unique()]
+    except Exception:
+        return []
 
 
-async def run_pipeline() -> None:
+def _latest_output_file(directory: str, prefix: str, suffix: str) -> str:
+    if not directory or not os.path.isdir(directory):
+        return ""
+    candidates = [
+        os.path.join(directory, name)
+        for name in os.listdir(directory)
+        if name.startswith(prefix) and name.endswith(suffix)
+    ]
+    if not candidates:
+        return ""
+    candidates.sort(key=os.path.getmtime, reverse=True)
+    return candidates[0]
+
+
+async def run_step6_only(runtime_overrides: dict[str, Any] | None = None) -> dict[str, Any]:
     global _passed_patient_ids
+
+    paths = configure_runtime(runtime_overrides)
+    _validate_runtime_inputs(require_selection_report=False)
 
     _data_label = "MIMIC" if _IS_MIMIC else "Original"
     print("=" * 65)
-    print("  STEP 6 + STEP 7 ML Pipeline")
-    print("  一致性验证  →  ML 训练数据生成")
+    print("  STEP 6 一致性验证")
     print("=" * 65)
     print(f"  模式:    {_data_label}（DATA_SOURCE={DATA_SOURCE}）")
     print(f"  模型:    {MODEL_NAME}")
@@ -2009,7 +2119,6 @@ async def run_pipeline() -> None:
     print(f"  置信度阈值: {CONFIDENCE_THRESHOLD}")
     print("=" * 65)
 
-    # ── Step 6 ────────────────────────────────────────────────────
     agent6 = create_consistency_agent()
 
     if _IS_MIMIC:
@@ -2035,7 +2144,7 @@ async def run_pipeline() -> None:
 
     print("\n[Pipeline] ▶ 启动 ConsistencyAgent (Step 6)...")
     result6 = await agent6(msg6)
-    text6   = _extract_msg_text(result6)
+    text6 = _extract_msg_text(result6)
 
     print("\n" + "=" * 65)
     print("  Step 6 完成")
@@ -2045,7 +2154,40 @@ async def run_pipeline() -> None:
     _passed_patient_ids = _parse_passed_ids(text6)
     print(f"\n[Pipeline] Step 6 通过患者 ID: {_passed_patient_ids}")
 
-    # ── Step 7 ────────────────────────────────────────────────────
+    step6_report_txt = _latest_output_file(OUTPUT_STEP6, "consistency_report_", ".txt")
+    step6_report_json = _latest_output_file(OUTPUT_STEP6, "consistency_report_", ".json")
+
+    return {
+        "success": bool(text6),
+        "error": "",
+        "step6_text": text6,
+        "passed_patient_ids": _passed_patient_ids,
+        "step6_report_txt": step6_report_txt,
+        "step6_report_json": step6_report_json,
+        "raw_csv": RAW_CSV,
+        "filtered_csv": FILTERED_CSV,
+        "selection_report": SELECTION_REPORT,
+        "output_step6": OUTPUT_STEP6,
+        "output_step7": OUTPUT_STEP7,
+        "runtime_paths": paths,
+    }
+
+
+async def run_step7_only(
+    passed_patient_ids: list[str] | None = None,
+    runtime_overrides: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    global _passed_patient_ids
+
+    configure_runtime(runtime_overrides)
+    _validate_runtime_inputs(require_selection_report=True)
+
+    if passed_patient_ids is not None:
+        _passed_patient_ids = [str(pid) for pid in passed_patient_ids]
+    if not _passed_patient_ids:
+        filt = _read_data(FILTERED_CSV)
+        _passed_patient_ids = [str(p) for p in filt["patient_id"].unique()]
+
     agent7 = create_dataprep_agent()
 
     if _IS_MIMIC:
@@ -2081,18 +2223,71 @@ async def run_pipeline() -> None:
 
     print("\n[Pipeline] ▶ 启动 DataPrepAgent (Step 7)...")
     result7 = await agent7(msg7)
-    text7   = _extract_msg_text(result7)
+    text7 = _extract_msg_text(result7)
 
     print("\n" + "=" * 65)
     print("  Step 7 完成")
     print("=" * 65)
     print(text7)
 
+    step7_csv = _latest_output_file(OUTPUT_STEP7, "ml_dataset_", ".csv")
+    step7_jsonl = _latest_output_file(OUTPUT_STEP7, "ml_dataset_", ".jsonl")
+    step7_json = _latest_output_file(OUTPUT_STEP7, "ml_dataset_", ".json")
+
+    return {
+        "success": bool(text7),
+        "error": "",
+        "step7_text": text7,
+        "passed_patient_ids": list(_passed_patient_ids),
+        "step7_dataset_csv": step7_csv,
+        "step7_dataset_jsonl": step7_jsonl,
+        "step7_dataset_json": step7_json,
+        "raw_csv": RAW_CSV,
+        "filtered_csv": FILTERED_CSV,
+        "selection_report": SELECTION_REPORT,
+        "output_step6": OUTPUT_STEP6,
+        "output_step7": OUTPUT_STEP7,
+    }
+
+
+async def run_pipeline(runtime_overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+    configure_runtime(runtime_overrides)
+
+    step6_result = await run_step6_only(runtime_overrides=runtime_overrides)
+    if not step6_result.get("success"):
+        return {
+            "success": False,
+            "error": str(step6_result.get("error") or "Step6 执行失败"),
+            "step6": step6_result,
+            "step7": {},
+        }
+
+    step7_result = await run_step7_only(
+        passed_patient_ids=step6_result.get("passed_patient_ids") or [],
+        runtime_overrides=runtime_overrides,
+    )
+    if not step7_result.get("success"):
+        return {
+            "success": False,
+            "error": str(step7_result.get("error") or "Step7 执行失败"),
+            "step6": step6_result,
+            "step7": step7_result,
+        }
+
     print("\n" + "=" * 65)
     print("  Pipeline 全部完成")
     print(f"  Step 6 报告 → {OUTPUT_STEP6}/")
     print(f"  Step 7 数据 → {OUTPUT_STEP7}/")
     print("=" * 65)
+
+    return {
+        "success": True,
+        "error": "",
+        "step6": step6_result,
+        "step7": step7_result,
+        "output_step6": OUTPUT_STEP6,
+        "output_step7": OUTPUT_STEP7,
+    }
 
 
 if __name__ == "__main__":

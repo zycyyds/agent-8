@@ -29,7 +29,7 @@
 
 | 配置项 | 含义 |
 |--------|------|
-| `DATA_DIR` | `step6&7/data/` |
+| `DATA_DIR` | `agent_6-7/data/` |
 | `RAW_CSV` | `data/副本all_patients.csv`（Step 6 分析用**原始多记录**表） |
 | `FILTERED_CSV` | `data/副本all_patients_filtered_*.csv`（按前缀取**最新**一份，Step 7 用） |
 | `SELECTION_REPORT` | `data/副本all_patients_selection_report_*.json`（列筛选与 `task_text`） |
@@ -222,7 +222,7 @@ export ICD10_BERT_MODEL=<本地模型目录或 HuggingFace 模型名>
 ## 9. 运行方式
 
 ```bash
-cd step6&7
+cd agent_6-7
 python run_step6_7_ml_pipeline.py
 ```
 

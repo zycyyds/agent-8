@@ -22,9 +22,6 @@ for p in (current_dir, parent_dir):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-src_path = os.path.abspath(os.path.join(parent_dir, "../../src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
 
 from agentscope.agent import ReActAgent
 from config.settings import ThinkingSafeOpenAIChatFormatter

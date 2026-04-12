@@ -8,12 +8,12 @@
   pip install modelscope
 
 用法:
-  cd step6&7
+  cd agent_6-7
   python download_bert_modelscope.py
   python download_bert_modelscope.py --model BAAI/bge-small-zh-v1.5 --out ./models/bge-small-zh
 
 下载完成后，构建向量库前设置本地路径（不要用 HuggingFace 拉取）:
-  export ICD10_BERT_MODEL=/绝对路径/step6&7/models/bge-small-zh
+  export ICD10_BERT_MODEL=/绝对路径/agent_6-7/models/bge-small-zh
   python build_icd10_vector_store.py
 
 说明:
