@@ -24,7 +24,7 @@ for p in (current_dir, parent_dir):
 
 
 from agentscope.agent import ReActAgent
-from config.settings import ThinkingSafeOpenAIChatFormatter
+from config.settings import ThinkingSafeOpenAIChatFormatter, register_no_thinking_print_hook
 from agentscope.message import Msg
 from agentscope.model import OpenAIChatModel
 from agentscope.tool import Toolkit
@@ -93,7 +93,7 @@ def setup_liver_agents() -> Tuple[Optional[ReActAgent], None]:
         print(f"⚠️  注册工具失败（将使用无工具模式）: {e}")
         toolkit = None
 
-    med_agent = ReActAgent(
+    med_agent = register_no_thinking_print_hook(ReActAgent(
         name="LiverNoteExtractor",
         sys_prompt="""你是一位专业的医学信息抽取专家，擅长从临床笔记、放射报告、出院记录等自由文本中提取结构化信息。
 
@@ -127,7 +127,7 @@ def setup_liver_agents() -> Tuple[Optional[ReActAgent], None]:
         model=model,
         formatter=ThinkingSafeOpenAIChatFormatter(),
         toolkit=toolkit,
-    )
+    ))
 
     return med_agent, None  # 不进行标准化，第二个返回值为 None
 

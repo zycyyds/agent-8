@@ -171,7 +171,7 @@ def _invoke_organize_dataset_tool(toolkit_path: str, validated_json_path: str | 
     preset_kwargs = _load_tool_preset_kwargs(toolkit_path, "organize_dataset_by_modality")
     tool_input: dict[str, Any] = {
         "validated_json_path": validated_json_path,
-        "output_root": os.path.join(project_root, "program", "output", "data"),
+        "output_root": _get_step1_results_dir(),
         "result_json_dir": os.path.join(project_root, "output", "result_json"),
         "rawdata_root": os.path.join(project_root, "rawdata"),
     }
@@ -538,8 +538,44 @@ def _get_program_output_root() -> str:
     return os.path.join(_get_project_root(), "program", "output")
 
 
+def _get_step1_results_dir() -> str:
+    return os.path.join(_get_program_output_root(), "step1_results")
+
+
+def _get_step2_3_results_dir() -> str:
+    return os.path.join(_get_program_output_root(), "step2_3_results")
+
+
+def _get_step4_results_dir() -> str:
+    return os.path.join(_get_program_output_root(), "step4_results")
+
+
 def _get_step5_results_dir() -> str:
     return os.path.join(_get_program_output_root(), "step5_results")
+
+
+def _get_step2_3_next_input_dir() -> str:
+    return os.path.join(_get_step2_3_results_dir(), "next_input")
+
+
+def _get_step4_next_input_dir() -> str:
+    return os.path.join(_get_step4_results_dir(), "next_input")
+
+
+def _get_step5_next_input_dir() -> str:
+    return os.path.join(_get_step5_results_dir(), "next_input")
+
+
+def _publish_next_input_file(source_path: str, target_dir: str, target_name: str | None = None) -> str:
+    if not source_path:
+        return ""
+    source_abs = os.path.abspath(source_path)
+    if not os.path.isfile(source_abs):
+        return ""
+    os.makedirs(target_dir, exist_ok=True)
+    target_path = os.path.join(target_dir, target_name or os.path.basename(source_abs))
+    shutil.copy2(source_abs, target_path)
+    return target_path
 
 
 def _get_step67_results_dir() -> str:
@@ -557,11 +593,11 @@ def _get_step67_step7_output_dir() -> str:
 def _get_default_step2_3_input_path(input_data: str) -> str:
     if input_data and os.path.isdir(str(input_data)):
         return str(input_data)
-    return os.path.join(_get_program_output_root(), "data")
+    return _get_step1_results_dir()
 
 
 def _get_default_step4_input_path(input_data: str) -> str:
-    step2_3_root = os.path.join(_get_program_output_root(), "step2_3_results")
+    step2_3_root = _get_step2_3_results_dir()
     if os.path.isdir(step2_3_root):
         return step2_3_root
 
@@ -572,7 +608,18 @@ def _get_default_step4_input_path(input_data: str) -> str:
 
 
 def _get_default_step5_input_csv() -> str:
-    step4_results_dir = os.path.join(_get_program_output_root(), "step4_results")
+    next_input_dir = _get_step4_next_input_dir()
+    if os.path.isdir(next_input_dir):
+        next_input_candidates = [
+            os.path.join(next_input_dir, name)
+            for name in os.listdir(next_input_dir)
+            if name.lower().endswith(".csv")
+        ]
+        if next_input_candidates:
+            next_input_candidates.sort(key=os.path.getmtime, reverse=True)
+            return next_input_candidates[0]
+
+    step4_results_dir = _get_step4_results_dir()
     if not os.path.isdir(step4_results_dir):
         return os.path.join(step4_results_dir, "latest_cleaned_missing.csv")
 
@@ -658,7 +705,51 @@ def _resolve_step2_3_liver_jsonl_path(data_dir: str) -> str:
     return ""
 
 
-def _build_step2_3_liver_summary(data_dir: str, result_jsonl: str, result_csv: str, fields_json: str) -> str:
+def _should_auto_step2_3_liver_notes() -> bool:
+    value = os.environ.get("STEP2_3_AUTO_LIVER_NOTES", "false")
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _resolve_step2_3_output_csv_for_next_input(output_dir: str, started_at: float) -> str:
+    if not os.path.isdir(output_dir):
+        return ""
+
+    candidates: list[str] = []
+    next_input_dir = os.path.abspath(_get_step2_3_next_input_dir())
+    for root, _, files in os.walk(output_dir):
+        root_abs = os.path.abspath(root)
+        if root_abs == next_input_dir or root_abs.startswith(next_input_dir + os.sep):
+            continue
+        for name in files:
+            if name.lower().endswith(".csv"):
+                candidates.append(os.path.join(root, name))
+
+    if not candidates:
+        return ""
+
+    recent_candidates = [
+        path
+        for path in candidates
+        if os.path.getmtime(path) >= (started_at - 1.0)
+    ]
+    pool = recent_candidates or candidates
+
+    def _sort_key(path: str) -> tuple[int, float]:
+        base = os.path.basename(path).lower()
+        preferred_rank = 0 if base == "all_patients.csv" else 1
+        return preferred_rank, -os.path.getmtime(path)
+
+    pool.sort(key=_sort_key)
+    return pool[0]
+
+
+def _build_step2_3_liver_summary(
+    data_dir: str,
+    result_jsonl: str,
+    result_csv: str,
+    fields_json: str,
+    next_input_csv: str = "",
+) -> str:
     lines = [
         "Step2_3: liver notes JSONL 专项抽取完成。",
         f"输入目录: {data_dir}",
@@ -668,6 +759,8 @@ def _build_step2_3_liver_summary(data_dir: str, result_jsonl: str, result_csv: s
         lines.append(f"输出CSV: {result_csv}")
     if fields_json:
         lines.append(f"字段分析: {fields_json}")
+    if next_input_csv:
+        lines.append(f"传递给Step4(next_input): {next_input_csv}")
     return "\n".join(lines)
 
 
@@ -699,6 +792,14 @@ def _build_step2_3_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str,
                 "content_blocks": [{"type": "text", "text": _summarize_step2_3_event(event)}],
             }
         )
+        if event.get("next_input_csv"):
+            assistant_outputs.append(
+                {
+                    "role": "assistant",
+                    "name": f"step2_3_next_input_{index}",
+                    "content_blocks": [{"type": "text", "text": f"next_input_csv={event['next_input_csv']}"}],
+                }
+            )
         event_name = str(event.get("event") or "session_event")
         event_target = str(event.get("target") or event.get("input") or "")
         event_output_parts = []
@@ -710,6 +811,8 @@ def _build_step2_3_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str,
             event_output_parts.append(json.dumps(event["stats"], ensure_ascii=False))
         if event.get("output_file"):
             event_output_parts.append(f"output_file={event['output_file']}")
+        if event.get("next_input_csv"):
+            event_output_parts.append(f"next_input_csv={event['next_input_csv']}")
         if event.get("error"):
             event_output_parts.append(f"error={event['error']}")
         tool_events.append(
@@ -791,6 +894,10 @@ def _build_step2_3_summary(data_dir: str, result: dict[str, Any]) -> str:
     if output_file:
         lines.append(f"输出文件: {output_file}")
 
+    next_input_csv = str(result.get("next_input_csv") or "")
+    if next_input_csv:
+        lines.append(f"传递给Step4(next_input): {next_input_csv}")
+
     return "\n".join(lines)
 
 
@@ -822,6 +929,9 @@ def _build_step4_summary(input_dir: str, result: dict[str, Any]) -> str:
         f"生成失败列数: {len(result.get('generation_failures', {}) or {})}",
         f"运行失败列数: {len(result.get('runtime_failures', {}) or {})}",
     ]
+    next_input_csv = str(result.get("next_input_csv") or "")
+    if next_input_csv:
+        lines.append(f"传递给Step5(next_input): {next_input_csv}")
     return "\n".join(lines)
 
 
@@ -834,9 +944,10 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
     runtime_failures = result.get("runtime_failures") or {}
     prepared_csv = str(result.get("prepared_input_csv") or "")
     prepared_json_count = int(result.get("prepared_json_count") or 0)
+    next_input_csv = str(result.get("next_input_csv") or "")
     summary_text = (
         f"input_dir={input_dir} | input_csv={input_csv} | prepared_input_csv={prepared_csv} | final_output_csv={final_output_csv} | "
-        f"quality_score={quality_score} | generated_cleaners={result.get('generated_cleaners', 0)} | "
+        f"next_input_csv={next_input_csv} | quality_score={quality_score} | generated_cleaners={result.get('generated_cleaners', 0)} | "
         f"generation_failures={len(generation_failures)} | runtime_failures={len(runtime_failures)}"
     )
     assistant_outputs = [
@@ -855,6 +966,9 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
             f"prepared_input_csv=<skipped_reuse_existing_csv> | prepared_json_count=0 | input_csv={input_csv}"
         )
 
+    step2_3_next_input_csv = str(result.get("step2_3_next_input_csv") or "")
+    resolve_input_tool_name = "step4_resolve_next_input_csv" if step2_3_next_input_csv else "step4_resolve_input_csv"
+
     tool_events = [
         {
             "tool_name": "step4_prepare_input",
@@ -864,7 +978,7 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
             "error": "" if prepare_succeeded else str(result.get('error') or "未生成可用的输入 CSV"),
         },
         {
-            "tool_name": "step4_resolve_input_csv",
+            "tool_name": resolve_input_tool_name,
             "tool_input": {"input_dir": input_dir},
             "tool_output": f"input_csv={input_csv}",
             "status": "succeeded" if input_csv else "failed",
@@ -904,6 +1018,13 @@ def _build_step4_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
             "status": "succeeded" if result.get("failed_columns_path") else "failed",
             "error": "" if result.get("failed_columns_path") else str(result.get('error') or "未写入失败列记录"),
         },
+        {
+            "tool_name": "step4_publish_next_input",
+            "tool_input": {"final_output_csv": final_output_csv},
+            "tool_output": f"next_input_csv={next_input_csv}",
+            "status": "succeeded" if next_input_csv else "failed",
+            "error": "" if next_input_csv else str(result.get('error') or "未发布 Step5 输入文件"),
+        },
     ]
     return assistant_outputs, tool_events
 
@@ -920,15 +1041,20 @@ def _build_step5_summary(input_csv: str, task_text: str, result: dict[str, Any])
             f"错误: {result.get('error', 'unknown error')}"
         )
 
-    return "\n".join(
-        [
-            "Step5: 任务导向裁剪完成。",
-            f"输入文件: {input_csv}",
-            f"任务描述: {task_text}",
-            f"筛选结果: {result.get('filtered_csv_path', '')}",
-            f"选择报告: {result.get('selection_report_path', '')}",
-        ]
-    )
+    lines = [
+        "Step5: 任务导向裁剪完成。",
+        f"输入文件: {input_csv}",
+        f"任务描述: {task_text}",
+        f"筛选结果: {result.get('filtered_csv_path', '')}",
+        f"选择报告: {result.get('selection_report_path', '')}",
+    ]
+    next_filtered_csv = str(result.get("next_input_filtered_csv") or "")
+    next_selection_report = str(result.get("next_input_selection_report") or "")
+    if next_filtered_csv:
+        lines.append(f"传递给Step6(filtered next_input): {next_filtered_csv}")
+    if next_selection_report:
+        lines.append(f"传递给Step6(selection_report next_input): {next_selection_report}")
+    return "\n".join(lines)
 
 
 _step67_runtime_cache: dict[str, Any] = {}
@@ -953,6 +1079,23 @@ def _load_step67_pipeline_module():
 
 
 def _resolve_latest_step5_artifacts() -> tuple[str, str]:
+    next_input_dir = _get_step5_next_input_dir()
+    if os.path.isdir(next_input_dir):
+        next_filtered_candidates = [
+            os.path.join(next_input_dir, name)
+            for name in os.listdir(next_input_dir)
+            if name.lower().endswith(".csv")
+        ]
+        next_report_candidates = [
+            os.path.join(next_input_dir, name)
+            for name in os.listdir(next_input_dir)
+            if name.lower().endswith(".json")
+        ]
+        if next_filtered_candidates and next_report_candidates:
+            next_filtered_candidates.sort(key=os.path.getmtime, reverse=True)
+            next_report_candidates.sort(key=os.path.getmtime, reverse=True)
+            return next_filtered_candidates[0], next_report_candidates[0]
+
     step5_dir = _get_step5_results_dir()
     if not os.path.isdir(step5_dir):
         return "", ""
@@ -1096,11 +1239,14 @@ def _build_step5_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
     task_text = str(result.get("task_text") or "")
     filtered_csv_path = str(result.get("filtered_csv_path") or "")
     selection_report_path = str(result.get("selection_report_path") or "")
+    next_input_filtered_csv = str(result.get("next_input_filtered_csv") or "")
+    next_input_selection_report = str(result.get("next_input_selection_report") or "")
     success = bool(result.get("success"))
 
     summary_text = (
         f"input_csv={input_csv} | task_text={task_text} | filtered_csv_path={filtered_csv_path} | "
-        f"selection_report_path={selection_report_path} | success={success}"
+        f"selection_report_path={selection_report_path} | next_input_filtered_csv={next_input_filtered_csv} | "
+        f"next_input_selection_report={next_input_selection_report} | success={success}"
     )
     assistant_outputs = [
         {
@@ -1113,6 +1259,7 @@ def _build_step5_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
     run_error = "" if success else str(result.get("error") or "Step5 执行失败")
     resolve_error = "" if input_csv else str(result.get("error") or "未找到 Step5 输入 CSV")
     output_error = "" if (filtered_csv_path and selection_report_path) else str(result.get("error") or "未生成 Step5 输出文件")
+    next_input_error = "" if (next_input_filtered_csv and next_input_selection_report) else str(result.get("error") or "未发布 Step6 输入文件")
 
     tool_events = [
         {
@@ -1137,6 +1284,16 @@ def _build_step5_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, A
             ),
             "status": "succeeded" if (filtered_csv_path and selection_report_path) else "failed",
             "error": output_error,
+        },
+        {
+            "tool_name": "step5_publish_next_input",
+            "tool_input": {"filtered_csv_path": filtered_csv_path, "selection_report_path": selection_report_path},
+            "tool_output": (
+                f"next_input_filtered_csv={next_input_filtered_csv} | "
+                f"next_input_selection_report={next_input_selection_report}"
+            ),
+            "status": "succeeded" if (next_input_filtered_csv and next_input_selection_report) else "failed",
+            "error": next_input_error,
         },
     ]
     return assistant_outputs, tool_events
@@ -1406,35 +1563,17 @@ async def run_step2_parse_extract(input_data: str, context: str = "") -> ToolRes
 
 async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -> ToolResponse:
     data_dir = _get_default_step2_3_input_path(input_data)
-    print(f"[Step2_3] 使用输入目录: {data_dir}")
-    project_root = _get_project_root()
-    output_dir = os.path.join(project_root, "program", "output", "step2_3_results")
-
-    if not os.path.isdir(data_dir):
-        output = f"Step2_3: 输入目录不存在，无法执行医学数据清洗与标准化。输入目录: {data_dir}"
-        _trace_collector.record_step(
-            step_name="Step2_3 医学数据清洗与标准化",
-            input_data=data_dir,
-            output_content=output,
-            context=context,
-        )
-        memory_feedback = await report_last_step_reflection(
-            input_text=data_dir,
-            duration_seconds=0.0,
-            orchestrator_summary=output,
-            retrieved_bullet_ids=[],
-        )
-        if memory_feedback:
-            print(f"\n[Memory Supervisor Step2_3 反思结果]\n{memory_feedback}\n")
-        return ToolResponse(content=output)
-
+    output_dir = _get_step2_3_results_dir()
     started_at = time.time()
     session_messages: list[dict[str, Any]] = []
     session_tool_events: list[dict[str, Any]] = []
+
     try:
-        liver_jsonl_path = _resolve_step2_3_liver_jsonl_path(data_dir)
+        auto_liver = _should_auto_step2_3_liver_notes()
+        liver_jsonl_path = _resolve_step2_3_liver_jsonl_path(data_dir) if auto_liver else ""
+
         if liver_jsonl_path:
-            print(f"[Step2_3] 检测到 liver jsonl，启用专项处理: {liver_jsonl_path}")
+            print(f"[Step2_3] 检测到 liver jsonl，且已开启自动专项处理: {liver_jsonl_path}")
             setup_liver_agents, batch_process_liver_notes = _load_step2_3_liver_notes_components()
             med_agent, std_agent = setup_liver_agents()
             if med_agent is None:
@@ -1461,11 +1600,19 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
                 if os.path.isfile(candidate_fields):
                     liver_fields_json = candidate_fields
 
+            next_input_csv = ""
+            if os.path.isfile(liver_out_csv):
+                next_input_csv = _publish_next_input_file(
+                    source_path=liver_out_csv,
+                    target_dir=_get_step2_3_next_input_dir(),
+                )
+
             output = _build_step2_3_liver_summary(
                 data_dir=data_dir,
                 result_jsonl=liver_out_jsonl,
                 result_csv=liver_out_csv if os.path.isfile(liver_out_csv) else "",
                 fields_json=liver_fields_json,
+                next_input_csv=next_input_csv,
             )
             session_messages = [
                 {
@@ -1476,7 +1623,7 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
                             "type": "text",
                             "text": (
                                 f"mode=liver_notes | input={liver_jsonl_path} | "
-                                f"output_jsonl={liver_out_jsonl}"
+                                f"output_jsonl={liver_out_jsonl} | next_input_csv={next_input_csv}"
                             ),
                         }
                     ],
@@ -1489,35 +1636,62 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
                     "tool_output": output,
                     "status": "succeeded",
                     "error": "",
-                }
+                },
+                {
+                    "tool_name": "step2_3_publish_next_input",
+                    "tool_input": {"source_csv": liver_out_csv},
+                    "tool_output": f"next_input_csv={next_input_csv}",
+                    "status": "succeeded" if next_input_csv else "failed",
+                    "error": "" if next_input_csv else "未发布 Step4 输入文件",
+                },
             ]
+        elif not sys.stdin or not sys.stdin.isatty():
+            output = (
+                "Step2_3: 当前环境不支持交互式医学数据清洗。\n"
+                f"默认目录: {data_dir}\n"
+                "原因: 标准输入不是交互终端（non-TTY）。"
+            )
         else:
-            if not sys.stdin or not sys.stdin.isatty():
-                output = (
-                    "Step2_3: 当前环境不支持交互式医学数据清洗。\n"
-                    f"输入目录: {data_dir}\n"
-                    "原因: 标准输入不是交互终端（non-TTY）。"
+            _, run_interactive_session, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
+            agent = UnifiedProcessingAgent(
+                name="Step2_3MedicalCleaner",
+                use_llm=True,
+                use_umls=True,
+                verbose=False,
+            )
+            print("\n[Step2_3] 已进入交互模式。输入文件/目录路径开始处理，输入 'quit' 结束当前 Step2_3 并返回主编排器。")
+            result = await run_interactive_session(
+                agent=agent,
+                output_dir=output_dir,
+                show_banner=True,
+            )
+            next_input_source_csv = _resolve_step2_3_output_csv_for_next_input(
+                output_dir=output_dir,
+                started_at=started_at,
+            )
+            next_input_csv = _publish_next_input_file(
+                source_path=next_input_source_csv,
+                target_dir=_get_step2_3_next_input_dir(),
+            )
+            if next_input_csv:
+                result["next_input_csv"] = next_input_csv
+                result.setdefault("session_events", []).append(
+                    {
+                        "event": "publish_next_input",
+                        "mode": "process",
+                        "target": next_input_source_csv,
+                        "success": True,
+                        "output_file": next_input_csv,
+                        "next_input_csv": next_input_csv,
+                    }
                 )
-            else:
-                _, run_interactive_session, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
-                agent = UnifiedProcessingAgent(
-                    name="Step2_3MedicalCleaner",
-                    use_llm=True,
-                    use_umls=True,
-                    verbose=False,
-                )
-                print("\n[Step2_3] 已进入交互模式。输入 'quit' 结束当前 Step2_3 并返回主编排器。")
-                result = await run_interactive_session(
-                    agent=agent,
-                    output_dir=output_dir,
-                    show_banner=True,
-                )
-                output = _build_step2_3_summary(data_dir, result)
-                session_messages, session_tool_events = _build_step2_3_trace_payload(result)
+            summary_input_dir = str(result.get("last_input") or data_dir)
+            output = _build_step2_3_summary(summary_input_dir, result)
+            session_messages, session_tool_events = _build_step2_3_trace_payload(result)
     except Exception as e:
         output = (
-            f"Step2_3: 医学数据清洗与标准化执行失败。\n"
-            f"输入目录: {data_dir}\n错误: {e}"
+            "Step2_3: 医学数据清洗与标准化执行失败。\n"
+            f"默认目录: {data_dir}\n错误: {e}"
         )
 
     _trace_collector.record_step(
@@ -1556,7 +1730,7 @@ async def run_step3_semantic_standardization(input_data: str, context: str = "")
 async def run_step4_data_quality_repair(input_data: str, context: str = "") -> ToolResponse:
     data_dir = _get_default_step4_input_path(input_data)
     project_root = _get_project_root()
-    workspace_dir = os.path.join(_get_program_output_root(), "step4_results")
+    workspace_dir = _get_step4_results_dir()
     validation_config_path = os.path.join(project_root, "agent_4", "validation_config.json")
     print(f"[Step4] 使用输入目录: {data_dir}")
 
@@ -1581,8 +1755,24 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
     started_at = time.time()
     session_messages: list[dict[str, Any]] = []
     session_tool_events: list[dict[str, Any]] = []
+    step2_3_next_input_csv = ""
+    step2_3_next_input_dir = _get_step2_3_next_input_dir()
     try:
-        prepared_input, prepared_json_count = _prepare_step4_input_dir(data_dir, workspace_dir)
+        prepared_json_count = 0
+        if os.path.isdir(step2_3_next_input_dir):
+            next_input_candidates = [
+                os.path.join(step2_3_next_input_dir, name)
+                for name in os.listdir(step2_3_next_input_dir)
+                if name.lower().endswith(".csv")
+            ]
+            if next_input_candidates:
+                next_input_candidates.sort(key=os.path.getmtime, reverse=True)
+                step2_3_next_input_csv = next_input_candidates[0]
+        if step2_3_next_input_csv and os.path.isfile(step2_3_next_input_csv):
+            prepared_input = step2_3_next_input_csv
+        else:
+            prepared_input, prepared_json_count = _prepare_step4_input_dir(data_dir, workspace_dir)
+
         if project_root not in sys.path:
             sys.path.insert(0, project_root)
         agent4_module = importlib.import_module("agent_4.main")
@@ -1595,8 +1785,17 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
             verbose=True,
         )
         result["input_dir"] = data_dir
+        result["step2_3_next_input_csv"] = step2_3_next_input_csv if (step2_3_next_input_csv and os.path.isfile(step2_3_next_input_csv)) else ""
         result["prepared_input_csv"] = prepared_input if str(prepared_input).lower().endswith(".csv") else ""
         result["prepared_json_count"] = prepared_json_count
+
+        next_input_csv = _publish_next_input_file(
+            source_path=str(result.get("final_output_csv") or ""),
+            target_dir=_get_step4_next_input_dir(),
+        )
+        if next_input_csv:
+            result["next_input_csv"] = next_input_csv
+
         output = _build_step4_summary(data_dir, result)
         session_messages, session_tool_events = _build_step4_trace_payload(result)
     except Exception as e:
@@ -1705,12 +1904,23 @@ async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -
         if not os.path.isfile(selection_report_path):
             raise FileNotFoundError(f"Step5 选择报告文件不存在: {selection_report_path}")
 
+        next_input_filtered_csv = _publish_next_input_file(
+            source_path=filtered_csv_path,
+            target_dir=_get_step5_next_input_dir(),
+        )
+        next_input_selection_report = _publish_next_input_file(
+            source_path=selection_report_path,
+            target_dir=_get_step5_next_input_dir(),
+        )
+
         result = {
             "success": True,
             "input_csv": input_csv,
             "task_text": task_text,
             "filtered_csv_path": filtered_csv_path,
             "selection_report_path": selection_report_path,
+            "next_input_filtered_csv": next_input_filtered_csv,
+            "next_input_selection_report": next_input_selection_report,
             "error": "",
         }
         output = _build_step5_summary(input_csv, task_text, result)

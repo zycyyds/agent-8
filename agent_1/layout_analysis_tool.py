@@ -24,7 +24,7 @@ except ImportError:
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 指向项目根目录
 PROGRAM_OUTPUT_DIR = os.path.join(BASE_DIR, "program", "output")
-PROGRAM_DATA_DIR = os.path.join(PROGRAM_OUTPUT_DIR, "data")
+PROGRAM_DATA_DIR = os.path.join(PROGRAM_OUTPUT_DIR, "step1_results")
 MODEL_PATH = os.path.join(
     BASE_DIR,
     "agent_1",
@@ -1152,8 +1152,8 @@ def _execute_segmentation(
                                 print(f"Warning: Source file not found: {src_path}")
                                 continue
 
-                        # 保存原图到 ocr 目录
-                        original_dst_dir = os.path.join(output_root, record_id, "ocr", category, "分割", "原图")
+                        # 保存原图到 ocr 目录（去掉“分割”层级）
+                        original_dst_dir = os.path.join(output_root, record_id, "ocr", category, "原图")
                         os.makedirs(original_dst_dir, exist_ok=True)
                         original_dst_path = os.path.join(original_dst_dir, fname)
 
@@ -1216,7 +1216,7 @@ def _execute_segmentation(
 
                         # 只有在有 figure 裁剪或 modality 为 figure 时才创建目录并保存
                         if figure_crops or modality == "figure":
-                            figure_dst_dir = os.path.join(output_root, record_id, "figure", category, "分割", "files")
+                            figure_dst_dir = os.path.join(output_root, record_id, "figure", category, "files")
                             os.makedirs(figure_dst_dir, exist_ok=True)
 
                             figure_count = 0
@@ -1245,7 +1245,7 @@ def _execute_segmentation(
 
                         # ocr 类图片：保存 table/text 区域到 ocr 目录
                         if modality in ["ocr", "ocr+figure"]:
-                            ocr_dst_dir = os.path.join(output_root, record_id, "ocr", category, "分割", "files")
+                            ocr_dst_dir = os.path.join(output_root, record_id, "ocr", category, "files")
                             os.makedirs(ocr_dst_dir, exist_ok=True)
 
                             table_text_count = 0
