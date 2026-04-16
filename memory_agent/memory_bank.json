@@ -277,6 +277,58 @@
       "status": "active"
     },
     {
+      "id": "fail-00011",
+      "content": "在执行数据清洗自动化流程（如 Step4）时，若规则生成工具返回的 generation_failures 字段大于 0，必须立即触发阻断机制并终止任务，严禁静默忽略失败项直接进入清洗执行阶段，以防特定字段清洗逻辑缺失导致数据质量隐患。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:16:44.975597",
+      "last_used": "2026-04-13T20:16:44.975597",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "fail-00012",
+      "content": "当 Step6 一致性验证因上游目录结构变更而失败时，若错误表现为输入解析异常或文件未找到，必须优先排查上游 Step5 输出目录的命名规范或文件后缀是否发生非预期变更，严禁仅针对 Step6 工具本身进行重试或参数调整。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:35:11.326998",
+      "last_used": "2026-04-13T20:35:11.326998",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "fail-00013",
+      "content": "当工具返回状态为成功但关键输出字段（如 dataset_csv、output_path）为空时，应判定为工具内部逻辑断点而非输入错误；此时必须停止依赖该字段的下游操作，并优先检查工具内部的文件生成或路径解析逻辑，严禁假设文件已生成并尝试读取空路径。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:46:18.938401",
+      "last_used": "2026-04-13T20:46:18.938401",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "fail-00014",
+      "content": "在执行任何涉及用户交互或标准输入读取的步骤（如数据清洗确认、参数选择）前，必须首先检测标准输入是否为交互终端（TTY）；若检测到非交互环境（non-TTY），必须立即跳过交互式输入环节，自动采用预设参数、配置文件或批处理模式继续执行，严禁直接抛出环境不兼容错误导致任务中断。",
+      "section": "failure_patterns",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T21:24:45.539484",
+      "last_used": "2026-04-13T21:24:45.539484",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
       "id": "mod-00001",
       "content": "当版面分析识别出 `ocr+figure` 混合模态时，必须强制触发人工验证流程（GUI），严禁在未获得验证结果前直接进行数据清洗或组织，以确保复杂图表数据的准确性。",
       "section": "modality_rules",
@@ -427,6 +479,19 @@
       "harmful_count": 0,
       "created_at": "2026-04-13T17:39:43.439617",
       "last_used": "2026-04-13T17:39:43.439617",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "mod-00013",
+      "content": "在执行依赖特定模态（如图片布局分析）的任务前，必须强制调用文件扫描工具校验输入文件的实际模态；若检测到非目标模态文件（如表格.xlsx、纯文本.txt），必须立即阻断后续流程，严禁尝试执行版面分析等不兼容步骤，并向用户明确说明模态不匹配原因及建议操作（如转换格式或提供正确文件）。",
+      "section": "modality_rules",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T21:15:31.196023",
+      "last_used": "2026-04-13T21:15:31.196023",
       "metadata": {
         "source": "curator"
       },
@@ -1135,14 +1200,66 @@
         "source": "curator"
       },
       "status": "active"
+    },
+    {
+      "id": "tool-00038",
+      "content": "在执行 Step5 任务导向筛选（run_task_driven_selector）及后续输出写入（write_outputs）时，必须确保工具返回的文件路径字符串包含完整的绝对路径（含时间戳后缀），严禁返回截断路径、相对路径或仅目录名；下游 Step6 初始化前必须校验该路径字符串的完整性，若检测到路径格式异常或截断，必须立即终止并报错，防止因路径不匹配导致下游工具调用失败。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:26:11.780033",
+      "last_used": "2026-04-13T20:26:11.780033",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00039",
+      "content": "在执行 Step6 一致性验证任务时，必须严格校验上游 Step5 输出目录的固定结构契约（含目录命名规范与文件后缀）；若检测到目录结构或文件后缀发生变更，必须同步更新 resolve 工具的输入参数解析逻辑，严禁直接沿用旧逻辑导致输入解析失败。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:35:11.311831",
+      "last_used": "2026-04-13T20:35:11.311831",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00040",
+      "content": "在调用 step7_run_pipeline 工具后，必须立即校验其返回结果中的 dataset_csv 字段是否为空字符串或 null；若为空，必须立即终止当前任务链并抛出‘Step7 核心数据文件生成失败’错误，严禁尝试继续执行依赖该 CSV 文件的后续步骤或进行无效重试。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:46:18.919551",
+      "last_used": "2026-04-13T20:46:18.919551",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
+    },
+    {
+      "id": "tool-00041",
+      "content": "在调用 step7_run_pipeline 工具前，必须显式校验上游 Step5/Step6 生成的具体 CSV 文件路径（含完整文件名与时间戳）是否物理存在且文件大小大于 0；严禁仅传递输出目录名或假设路径有效，若文件缺失必须立即终止并抛出‘上游数据文件缺失’错误，防止工具因路径解析失败返回空数据集。",
+      "section": "tool_usage",
+      "helpful_count": 0,
+      "harmful_count": 0,
+      "created_at": "2026-04-13T20:56:16.256881",
+      "last_used": "2026-04-13T20:56:16.256881",
+      "metadata": {
+        "source": "curator"
+      },
+      "status": "active"
     }
   ],
   "statistics": {
-    "total_executions": 82,
-    "unique_strategies": 87,
-    "last_reflection": "2026-04-13T17:49:03.147851",
-    "total_bullets": 87,
-    "last_refine_at": "2026-04-13T17:49:03.147592",
+    "total_executions": 89,
+    "unique_strategies": 96,
+    "last_reflection": "2026-04-13T21:24:58.371189",
+    "total_bullets": 96,
+    "last_refine_at": "2026-04-13T21:24:58.370871",
     "duplicate_merges": 0,
     "last_query": "/Users/mkbk/PycharmProjects/agent-8/program/output/step1_results"
   }

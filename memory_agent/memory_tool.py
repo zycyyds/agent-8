@@ -406,7 +406,7 @@ async def curator_apply_reflection(
         reflection=reflection,
         trace_json=trace_data,
     )
-    result = curator.apply_delta(manager=manager, delta=delta, source="curator")
+    result = curator.apply_delta(manager=manager, delta=delta, source="curator", trace_data=trace_data)
     result["delta"] = delta.to_dict()
     result["reflection_source"] = reflection_source
     result["reflection_quality"] = reflection_quality

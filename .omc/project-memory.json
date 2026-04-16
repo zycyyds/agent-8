@@ -1,0 +1,286 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776326777164,
+  "projectRoot": "/Users/mkbk/PycharmProjects/agent-8",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "zyc-main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1776326777146,
+      "keyFiles": [
+        "agentscope_tool_loader.cpython-310.pyc",
+        "layout_analysis_tool.cpython-310.pyc",
+        "main_layout_example.cpython-310.pyc",
+        "validation_gui.cpython-310.pyc"
+      ]
+    },
+    "agent_1": {
+      "path": "agent_1",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1776326777146,
+      "keyFiles": [
+        "README.md",
+        "__init__.py",
+        "agentscope_tool_loader.py",
+        "agentscope_tools.json",
+        "layout_analysis_tool.py"
+      ]
+    },
+    "agent_2-3": {
+      "path": "agent_2-3",
+      "purpose": null,
+      "fileCount": 10,
+      "lastAccessed": 1776326777146,
+      "keyFiles": [
+        "README.md",
+        "__init__.py",
+        "convert_csv_format.py",
+        "main.py",
+        "process_liver_notes.py"
+      ]
+    },
+    "agent_4": {
+      "path": "agent_4",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1776326777146,
+      "keyFiles": [
+        "derived_knowledge.json",
+        "extracted.py",
+        "human_knowledge.json",
+        "main.py",
+        "validation_config.json"
+      ]
+    },
+    "agent_5": {
+      "path": "agent_5",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1776326777147,
+      "keyFiles": [
+        "README.md",
+        "config.json",
+        "liver_notes_extracted.csv",
+        "liver_notes_extracted_filtered_20260324_180753.csv",
+        "liver_notes_extracted_selection_report_20260324_180753.json"
+      ]
+    },
+    "agent_6-7": {
+      "path": "agent_6-7",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1776326777147,
+      "keyFiles": [
+        "AGENT_PIPELINE.md",
+        "ICD-10.xlsx",
+        "build_icd10_vector_store.py",
+        "download_bert_modelscope.py",
+        "ml_data_processor_agent.py"
+      ]
+    },
+    "configs": {
+      "path": "configs",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776326777147,
+      "keyFiles": [
+        "loader.py",
+        "model_config.yaml"
+      ]
+    },
+    "main_orchestrator": {
+      "path": "main_orchestrator",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1776326777148,
+      "keyFiles": [
+        "main_orchestrator.py",
+        "memory_supervisor.py",
+        "step_wrappers.py"
+      ]
+    },
+    "memory_agent": {
+      "path": "memory_agent",
+      "purpose": null,
+      "fileCount": 10,
+      "lastAccessed": 1776326777148,
+      "keyFiles": [
+        "README.md",
+        "__init__.py",
+        "ace_tools.py",
+        "agentscope_tools.json",
+        "config.py"
+      ]
+    },
+    "output": {
+      "path": "output",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1776326777148,
+      "keyFiles": [
+        "classification.json",
+        "classification_results.json",
+        "classification_results_validated.json",
+        "ocr_figure_validation_results.json"
+      ]
+    },
+    "program": {
+      "path": "program",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1776326777149,
+      "keyFiles": []
+    },
+    "rawdata": {
+      "path": "rawdata",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1776326777150,
+      "keyFiles": [
+        "副本20260302_病例数据_脱敏.xlsx"
+      ]
+    },
+    "agent_2-3/config": {
+      "path": "agent_2-3/config",
+      "purpose": "Configuration files",
+      "fileCount": 2,
+      "lastAccessed": 1776326777150,
+      "keyFiles": [
+        "__init__.py",
+        "settings.py"
+      ]
+    },
+    "agent_2-3/data": {
+      "path": "agent_2-3/data",
+      "purpose": "Data files",
+      "fileCount": 0,
+      "lastAccessed": 1776326777151,
+      "keyFiles": []
+    },
+    "agent_2-3/examples": {
+      "path": "agent_2-3/examples",
+      "purpose": "Example code",
+      "fileCount": 2,
+      "lastAccessed": 1776326777151,
+      "keyFiles": [
+        "__init__.py",
+        "demo_csv.py"
+      ]
+    },
+    "agent_4/data": {
+      "path": "agent_4/data",
+      "purpose": "Data files",
+      "fileCount": 49,
+      "lastAccessed": 1776326777152,
+      "keyFiles": [
+        "liver_notes_extracted.csv",
+        "liver_notes_extracted_cleaned_1.csv",
+        "liver_notes_extracted_cleaned_10.csv"
+      ]
+    },
+    "agent_4/utils": {
+      "path": "agent_4/utils",
+      "purpose": "Utility functions",
+      "fileCount": 1,
+      "lastAccessed": 1776326777152,
+      "keyFiles": [
+        "generate_knowledge_template.py"
+      ]
+    },
+    "agent_6-7/data": {
+      "path": "agent_6-7/data",
+      "purpose": "Data files",
+      "fileCount": 0,
+      "lastAccessed": 1776326777153,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "agent_1/layout_analysis_tool.py",
+      "accessCount": 6,
+      "lastAccessed": 1776326916299,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 4,
+      "lastAccessed": 1776326857088,
+      "type": "directory"
+    },
+    {
+      "path": "main_orchestrator/step_wrappers.py",
+      "accessCount": 2,
+      "lastAccessed": 1776326897263,
+      "type": "directory"
+    },
+    {
+      "path": "agent_1/README.md",
+      "accessCount": 1,
+      "lastAccessed": 1776326868150,
+      "type": "file"
+    },
+    {
+      "path": "main_orchestrator/main_orchestrator.py",
+      "accessCount": 1,
+      "lastAccessed": 1776326868201,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1776326868255,
+      "type": "file"
+    },
+    {
+      "path": "agent_1/agentscope_tool_loader.py",
+      "accessCount": 1,
+      "lastAccessed": 1776326882209,
+      "type": "file"
+    },
+    {
+      "path": "agent_1/main_layout_example.py",
+      "accessCount": 1,
+      "lastAccessed": 1776326882221,
+      "type": "file"
+    },
+    {
+      "path": "agent_1/agentscope_tools.json",
+      "accessCount": 1,
+      "lastAccessed": 1776326897304,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

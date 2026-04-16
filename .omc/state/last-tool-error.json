@@ -1,0 +1,7 @@
+{
+  "tool_name": "Read",
+  "tool_input_preview": "{\"file_path\":\"/Users/mkbk/PycharmProjects/agent-8/agent_1/layout_analysis_tool.py\"}",
+  "error": "File content (16621 tokens) exceeds maximum allowed tokens (10000). Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.",
+  "timestamp": "2026-04-16T08:08:02.250Z",
+  "retry_count": 2
+}

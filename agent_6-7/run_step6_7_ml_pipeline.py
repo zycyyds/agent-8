@@ -1906,6 +1906,46 @@ def format_and_save_ml_dataset(
 # 4. 模型与 Agent
 # ══════════════════════════════════════════════════════════════════
 
+class ThinkingSafeOpenAIChatFormatter(OpenAIChatFormatter):
+    """在送入 OpenAI formatter 前过滤 thinking block，避免告警日志。"""
+
+    async def _format(self, msgs: list[Msg]) -> list[dict]:
+        sanitized_msgs = [_strip_thinking_from_msg(msg) for msg in msgs]
+        return await super()._format(sanitized_msgs)
+
+
+def _strip_thinking_from_msg(msg: Msg) -> Msg:
+    content = getattr(msg, "content", None)
+    if not isinstance(content, list):
+        return msg
+    content_blocks = [
+        block
+        for block in msg.get_content_blocks()
+        if str(block.get("type") or "") != "thinking"
+    ]
+    sanitized_msg = Msg(
+        name=msg.name,
+        content=content_blocks,
+        role=msg.role,
+        metadata=msg.metadata,
+        timestamp=msg.timestamp,
+        invocation_id=msg.invocation_id,
+    )
+    sanitized_msg.id = msg.id
+    return sanitized_msg
+
+
+def _register_no_thinking_print_hook(agent: ReActAgent) -> ReActAgent:
+    def _hook(_agent: ReActAgent, kwargs: dict[str, Any]) -> dict[str, Any] | None:
+        msg = kwargs.get("msg")
+        if isinstance(msg, Msg):
+            kwargs["msg"] = _strip_thinking_from_msg(msg)
+        return kwargs
+
+    agent.register_instance_hook("pre_print", "strip_thinking_for_console", _hook)
+    return agent
+
+
 def create_model() -> OpenAIChatModel:
     return OpenAIChatModel(
         model_name=MODEL_NAME,
@@ -1930,7 +1970,7 @@ def create_consistency_agent() -> ReActAgent:
         _dataset_desc = "前庭功能检查数据集，每位患者有多条检查记录。"
         _analysis_hint = "注意：同一患者可能来自不同检查批次，请重点关注诊断、性别等关键字段的一致性。"
 
-    return ReActAgent(
+    agent = ReActAgent(
         name="ConsistencyAgent",
         sys_prompt=f"""你是医疗数据质量工程师，负责对{_dataset_desc}执行 Step 6 一致性验证。
 分析粒度是**患者**：每位患者有多条记录，你需要逐一检查每位患者内部记录是否一致。
@@ -1962,11 +2002,12 @@ def create_consistency_agent() -> ReActAgent:
 PASSED_PATIENTS: [patient_id_1, patient_id_2, ...]
 """,
         model=create_model(),
-        formatter=OpenAIChatFormatter(),
+        formatter=ThinkingSafeOpenAIChatFormatter(),
         toolkit=step6_toolkit,
         memory=InMemoryMemory(),
         max_iters=20,
     )
+    return _register_no_thinking_print_hook(agent)
 
 
 def create_dataprep_agent() -> ReActAgent:
@@ -1988,7 +2029,7 @@ def create_dataprep_agent() -> ReActAgent:
             "   - 根据 task_text 与诊断列分布选定最合适的标签列"
         )
 
-    return ReActAgent(
+    agent = ReActAgent(
         name="DataPrepAgent",
         sys_prompt=f"""你是一位 ML 数据工程师，负责将高置信度医疗数据转化为机器学习训练集。
 特征列已由筛选报告自动确定，你只需聚焦于：
@@ -2050,11 +2091,12 @@ ICD-10 标准化说明（本地库 + BERT 向量）：
   - **工作流必须闭环**：最后一次工具调用应是 format_and_save_ml_dataset 成功保存，不得停在追问用户
 """,
         model=create_model(),
-        formatter=OpenAIChatFormatter(),
+        formatter=ThinkingSafeOpenAIChatFormatter(),
         toolkit=step7_toolkit,
         memory=InMemoryMemory(),
         max_iters=35,
     )
+    return _register_no_thinking_print_hook(agent)
 
 
 # ══════════════════════════════════════════════════════════════════

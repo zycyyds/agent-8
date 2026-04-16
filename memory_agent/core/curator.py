@@ -20,6 +20,39 @@ from .reflector import build_safe_fallback_rule
 from .trace_parser import normalize_trace_payload
 
 
+_STEP_NAME_TO_SOURCE_STEP = {
+    "数据感知与模态识别": "step1",
+    "解析与结构化抽取": "step2",
+    "Step2_3 医学数据清洗与标准化": "step2_3",
+    "语义标准化与本体映射": "step3",
+    "数据质量检测与自动修复": "step4",
+    "任务导向裁剪": "step5",
+    "一致性验证与置信度估计": "step6",
+    "表型/知识确认": "step7",
+}
+
+
+def infer_source_step(trace_data: dict[str, Any] | None) -> str:
+    steps = (trace_data or {}).get("steps") or []
+    for step in reversed(steps):
+        if not isinstance(step, dict):
+            continue
+        step_name = str(step.get("step_name") or "").strip()
+        if not step_name:
+            continue
+        if step_name in _STEP_NAME_TO_SOURCE_STEP:
+            return _STEP_NAME_TO_SOURCE_STEP[step_name]
+
+        normalized = step_name.lower().replace(" ", "")
+        if "step2_3" in normalized:
+            return "step2_3"
+
+        match = re.search(r"step[_\s-]*([1-7])", normalized, re.IGNORECASE)
+        if match:
+            return f"step{match.group(1)}"
+    return ""
+
+
 def _contains_cjk(text: Any) -> bool:
     return bool(re.search(r"[\u4e00-\u9fff]", str(text or "")))
 
@@ -338,18 +371,23 @@ Current Playbook:
         manager: ACEPlaybookManager,
         delta: CuratorDelta,
         source: str = "curator",
+        trace_data: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         created_ids = []
         skipped_duplicates = 0
         applied_operations = []
+        source_step = infer_source_step(trace_data)
 
         for op in delta.operations:
             if op.type != "ADD":
                 continue
+            metadata = {"source": source}
+            if source_step:
+                metadata["source_step"] = source_step
             result = manager.add_bullet(
                 content=op.content,
                 section=op.section,
-                metadata={"source": source},
+                metadata=metadata,
             )
             applied_operations.append(op.to_dict())
             if result.get("created"):
