@@ -11,3 +11,5 @@ memory_agent/debug/
 program
 agent_4/cleaners
 agent_4/data
+docs
+.worktrees/
