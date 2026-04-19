@@ -17,6 +17,18 @@ agents:
     seed: 666
     enable_thinking: false
 
+  # Step1 异构数据集代码生成智能体
+  dataset_codegen_agent:
+    model_name: "qwen3.5:9b"
+    temperature: 0.0
+    seed: 666
+    mysql:
+      host: "127.0.0.1"
+      port: 3306
+      user: "zyc_user"
+      password: "1a2b3c=="
+      database: "agent8"
+
   # 主协调者 (Main Orchestrator)
   main_orchestrator:
     model_name: "qwen3.5:9b"

@@ -1,41 +1,32 @@
-# agent-1 模态识别 Agent
+# agent_1 单轮 codegen 链路
 
 ## 目录结构
 
+```text
+agent_1/
+├── codegen_agent.py           # 当前单轮入口
+├── codegen_tools.py           # 三个 records 工具
+├── codegen_visual.py          # 模态分析入口
+├── generated_reorganizer.py   # 生成脚本
+├── agentscope_tool_loader.py  # AgentScope 工具加载器
+├── agentscope_tools_dataset.json
+└── tests/
 ```
-agent-1/
-├── main_layout_example.py      # Agent 主程序入口
-├── layout_analysis_tool.py     # 布局分析工具模块
-├── agentscope_tool_loader.py   # AgentScope 工具加载器
-├── agentscope_tools.json       # 工具注册配置
-├── __init__.py
-└── README.md
-```
-
-## 功能说明
-
-该 Agent 用于文档图片的模态识别，可以自动判断图片属于以下三种类型：
-- `ocr` - 纯文本/表格内容
-- `figure` - 纯图片/图表内容
-- `ocr+figure` - 图文混合内容
 
 ## 使用方法
 
 ```bash
-cd agent-1
-python main_layout_example.py
+python agent_1/codegen_agent.py
 ```
 
-然后输入图片目录路径，例如：
-```
-../rawdata/垂直眼位
+然后输入待处理目录，例如：
+
+```text
+/Users/mkbk/PycharmProjects/agent-8/rawdata
 ```
 
-## 输出目录
+## 当前链路
 
-Agent 会在**父目录**（项目根目录）生成以下输出：
-- `output/results/` - 标注后的图片
-- `output/result_json/` - 检测 JSON 结果
-- `output/分割/` - 裁剪出的 figure 元素
-- `output/classification_results.json` - 分类汇总结果
-- `data/` - 整理后的数据集
+1. ReAct agent 顺序调用三个 records 工具写入 `reorganized_output/_meta/records.json`
+2. 基于 records 生成 `agent_1/generated_reorganizer.py`
+3. 执行生成脚本并输出摘要

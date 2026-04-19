@@ -1,10 +1,13 @@
 import importlib
-import json 
+import inspect
+import json
 import os
 from dataclasses import dataclass
+from functools import wraps
 from typing import Any
 
-from agentscope.tool import Toolkit
+from agentscope.message import TextBlock
+from agentscope.tool import Toolkit, ToolResponse
 
 
 @dataclass(frozen=True)
@@ -17,6 +20,35 @@ class ToolFunctionSpec:
 class ToolSpec:
     module: str
     functions: list[ToolFunctionSpec]
+
+
+def _build_tool_response_content(value: Any) -> list[TextBlock]:
+    if isinstance(value, str):
+        text = value
+    else:
+        text = json.dumps(value, ensure_ascii=False, indent=2, default=str)
+    return [TextBlock(type="text", text=text)]
+
+
+def _wrap_tool_function(fn):
+    if inspect.iscoroutinefunction(fn):
+        @wraps(fn)
+        async def async_wrapper(*args, **kwargs):
+            result = await fn(*args, **kwargs)
+            if isinstance(result, ToolResponse):
+                return result
+            return ToolResponse(content=_build_tool_response_content(result))
+
+        return async_wrapper
+
+    @wraps(fn)
+    def sync_wrapper(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        if isinstance(result, ToolResponse):
+            return result
+        return ToolResponse(content=_build_tool_response_content(result))
+
+    return sync_wrapper
 
 
 def load_toolkit_from_config(config_path: str) -> Toolkit:
@@ -44,7 +76,7 @@ def load_toolkit_from_config(config_path: str) -> Toolkit:
     for spec in specs:
         mod = importlib.import_module(spec.module)
         for fn_spec in spec.functions:
-            fn = getattr(mod, fn_spec.name)
+            fn = _wrap_tool_function(getattr(mod, fn_spec.name))
             preset = fn_spec.preset_kwargs
             if preset:
                 toolkit.register_tool_function(fn, preset_kwargs=preset)
