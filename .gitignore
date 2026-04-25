@@ -13,3 +13,17 @@ agent_4/cleaners
 agent_4/data
 docs
 .worktrees/
+
+# local runtime outputs
+reorganized_output/
+agent_2/results/
+agent_2/output_v2/
+
+# local model artifacts
+agent_6-7/models/
+
+# local tool settings
+agent_2/.claude/
+
+# python caches in nested modules/tests
+**/__pycache__/

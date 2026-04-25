@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from agent_1.agentscope_tool_loader import load_toolkit_from_config
+from agent_1.codegen_tools import clear_step1_records_path, set_step1_records_path
 from configs.loader import get_agent_config
 
 AGENT_CFG = get_agent_config("dataset_codegen_agent")
@@ -55,6 +56,43 @@ def initialize_records_file(output_root: Path) -> Path:
     return records_path
 
 
+def resolve_observation_records_path() -> Path:
+    observation_records_path = OBSERVATION_RECORDS_PATH
+    if observation_records_path.is_absolute():
+        return observation_records_path
+    return PROJECT_ROOT / observation_records_path
+
+
+def resolve_observation_output_root() -> Path:
+    return resolve_observation_records_path().parent.parent
+
+
+def rewrite_generated_script_paths(script_content: str, output_root: Path, records_path: Path) -> str:
+    rewritten = script_content
+    output_root_literal = str(Path(output_root).resolve())
+    records_path_literal = str(Path(records_path).resolve())
+
+    replacements = {
+        'OUTPUT_ROOT = Path("reorganized_output")': f'OUTPUT_ROOT = Path(r"{output_root_literal}")',
+        "OUTPUT_ROOT = Path('reorganized_output')": f'OUTPUT_ROOT = Path(r"{output_root_literal}")',
+        'OUTPUT_ROOT = Path("reorganized_output").resolve()': f'OUTPUT_ROOT = Path(r"{output_root_literal}").resolve()',
+        "OUTPUT_ROOT = Path('reorganized_output').resolve()": f'OUTPUT_ROOT = Path(r"{output_root_literal}").resolve()',
+        'output_root = Path("reorganized_output")': f'output_root = Path(r"{output_root_literal}")',
+        "output_root = Path('reorganized_output')": f'output_root = Path(r"{output_root_literal}")',
+        'output_root = Path("reorganized_output").resolve()': f'output_root = Path(r"{output_root_literal}").resolve()',
+        "output_root = Path('reorganized_output').resolve()": f'output_root = Path(r"{output_root_literal}").resolve()',
+        'output_root = Path.cwd() / "reorganized_output"': f'output_root = Path(r"{output_root_literal}")',
+        "output_root = Path.cwd() / 'reorganized_output'": f'output_root = Path(r"{output_root_literal}")',
+        'RECORDS_PATH = OUTPUT_ROOT / "_meta" / "records.json"': f'RECORDS_PATH = Path(r"{records_path_literal}")',
+        "RECORDS_PATH = OUTPUT_ROOT / '_meta' / 'records.json'": f'RECORDS_PATH = Path(r"{records_path_literal}")',
+        'records = json.loads((output_root / "_meta" / "records.json").read_text(encoding="utf-8"))': f'records_path = Path(r"{records_path_literal}")\nrecords = json.loads(records_path.read_text(encoding="utf-8"))',
+        "records = json.loads((output_root / '_meta' / 'records.json').read_text(encoding='utf-8'))": f'records_path = Path(r"{records_path_literal}")\nrecords = json.loads(records_path.read_text(encoding="utf-8"))',
+    }
+    for old, new in replacements.items():
+        rewritten = rewritten.replace(old, new)
+    return rewritten
+
+
 def build_react_system_prompt() -> str:
     return """你是 Step1 异构数据集 ReAct 代码生成助手。
 请使用中文交流。
@@ -68,7 +106,7 @@ def build_react_system_prompt() -> str:
 不要展示原始 thinking。
 生成脚本内部禁止出现 execute_python_code、execute_shell_command、write_text_file、persist_records。
 生成脚本不得忽略 records 中已有 observation，不得把所有图片硬编码为 figure。
-最终输出契约必须满足 reorganized_output/<patient_id>/<modality>/<filename>。
+最终输出契约必须满足 reorganized_output/<patient_id>/<modality>/<relative_parent_dirs>/<filename>，其中 relative_parent_dirs 来自原始输入根目录下的相对父目录，可为空。
 最终回复必须包含：
 1. 本轮说明
 2. 工具调用摘要
@@ -301,12 +339,13 @@ async def run_react_codegen_cycle(
     emit=print,
     script_path: Path = GENERATED_SCRIPT_PATH,
     max_rounds: int = 1,
+    output_root: Path | None = None,
 ) -> dict:
     last_write_result = {"status": "SKIPPED", "content": "脚本尚未写入"}
     last_execute_result = {"status": "SKIPPED", "content": "脚本尚未执行"}
 
-    output_root = PROJECT_ROOT / "reorganized_output"
-    records_path = initialize_records_file(output_root)
+    effective_output_root = Path(output_root) if output_root is not None else PROJECT_ROOT / "reorganized_output"
+    records_path = initialize_records_file(resolve_observation_output_root())
     emit(f"records.json 已初始化：{records_path}")
 
     reply = await agent(
@@ -342,12 +381,21 @@ async def run_react_codegen_cycle(
             "issues": static_contract_result["issues"],
         }
 
+    script_content = rewrite_generated_script_paths(
+        script_content=script_content,
+        output_root=effective_output_root,
+        records_path=records_path,
+    )
+
     remove_existing_generated_script(script_path)
     last_write_result = await write_text_file(
         file_path=str(PROJECT_ROOT / script_path),
         content=script_content,
     )
-    last_execute_result = await execute_shell_command(build_execute_script_command(script_path))
+    last_execute_result = await execute_shell_command(
+        build_execute_script_command(script_path),
+        timeout=None,
+    )
     execution_issues = _build_execution_feedback_issues(last_execute_result)
 
     if execution_issues:
@@ -364,6 +412,73 @@ async def run_react_codegen_cycle(
         "rounds_used": 1,
         "write_result": last_write_result,
         "execute_result": last_execute_result,
+    }
+
+
+async def run_step1_codegen(
+    input_path: str,
+    output_root: Path | None = None,
+    emit=print,
+    script_path: Path | None = None,
+) -> dict:
+    effective_output_root = Path(output_root) if output_root is not None else PROJECT_ROOT / "reorganized_output"
+    effective_script_path = Path(script_path) if script_path is not None else GENERATED_SCRIPT_PATH
+    absolute_script_path = PROJECT_ROOT / effective_script_path if not effective_script_path.is_absolute() else effective_script_path
+    records_path = resolve_observation_records_path()
+
+    toolkit = load_toolkit_from_config(str(PROJECT_ROOT / "agent_1" / "agentscope_tools_dataset.json"))
+    toolkit.register_tool_function(write_text_file)
+    toolkit.register_tool_function(execute_python_code)
+    toolkit.register_tool_function(execute_shell_command)
+
+    agent = await create_codegen_agent(toolkit)
+    emitted_messages: list[str] = []
+
+    def capture(message: str) -> None:
+        text = str(message)
+        emitted_messages.append(text)
+        emit(text)
+
+    set_step1_records_path(records_path)
+    try:
+        runtime_result = await run_react_codegen_cycle(
+            input_path=input_path,
+            output_root=effective_output_root,
+            agent=agent,
+            emit=capture,
+            script_path=effective_script_path,
+            max_rounds=1,
+        )
+    finally:
+        clear_step1_records_path()
+
+    runtime_result = dict(runtime_result)
+    status = str(runtime_result.get("status") or "FAILED")
+    issues = list(runtime_result.get("issues") or [])
+    summary_text = "\n".join(item for item in emitted_messages if str(item).strip())
+    if not summary_text:
+        summary_text = f"Step1 {'完成' if status == 'SUCCESS' else '失败'}"
+
+    tool_output = json.dumps(serialize_runtime_result(runtime_result), ensure_ascii=False)
+    return {
+        "status": status,
+        "summary_text": summary_text,
+        "records_path": str(records_path),
+        "generated_script_path": str(absolute_script_path),
+        "step1_output_root": str(effective_output_root),
+        "raw_messages": [
+            {"role": "assistant", "content_blocks": [{"type": "text", "text": summary_text}]}
+        ] if summary_text else [],
+        "tool_events": [
+            {
+                "tool_name": "run_react_codegen_cycle",
+                "tool_input": {"input_path": input_path, "output_root": str(effective_output_root)},
+                "tool_output": tool_output,
+                "status": "succeeded" if status == "SUCCESS" else "failed",
+                "error": "\n".join(issues),
+            }
+        ],
+        "runtime_result": runtime_result,
     }
 
 

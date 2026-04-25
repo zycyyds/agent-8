@@ -1,4 +1,6 @@
+import argparse
 import asyncio
+import functools
 import os
 import sys
 import time
@@ -38,6 +40,16 @@ from configs.loader import get_agent_config
 AGENT_CFG = get_agent_config("main_orchestrator")
 
 
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run the main data pipeline orchestrator.")
+    parser.add_argument(
+        "--disable-memory-agent",
+        action="store_true",
+        help="Disable memory reflection and memory writes for the current pipeline run.",
+    )
+    return parser.parse_args(argv)
+
+
 def _format_orchestrator_summary_content(content) -> str:
     if isinstance(content, list):
         text_parts = []
@@ -63,16 +75,30 @@ def _format_orchestrator_summary_content(content) -> str:
     return str(content).strip()
 
 
-def _build_orchestrator(context_str: str) -> ReActAgent:
+def _build_orchestrator(context_str: str, enable_memory_agent: bool = True) -> ReActAgent:
+    _orchestrator_enable_memory_agent = enable_memory_agent
+
+    def _bind_memory_toggle(step_fn):
+        @functools.wraps(step_fn)
+        async def _tool(input_data: str, context: str = "", enable_memory_agent: bool | None = None):
+            _ = enable_memory_agent
+            return await step_fn(
+                input_data,
+                context,
+                enable_memory_agent=_orchestrator_enable_memory_agent,
+            )
+
+        return _tool
+
     toolkit = Toolkit()
-    toolkit.register_tool_function(run_step1_modal_recognition)
-    toolkit.register_tool_function(run_step2_3_medical_data_cleaner)
+    toolkit.register_tool_function(_bind_memory_toggle(run_step1_modal_recognition))
+    toolkit.register_tool_function(_bind_memory_toggle(run_step2_3_medical_data_cleaner))
     toolkit.register_tool_function(run_step2_parse_extract)
     toolkit.register_tool_function(run_step3_semantic_standardization)
-    toolkit.register_tool_function(run_step4_data_quality_repair)
-    toolkit.register_tool_function(run_step5_task_oriented_clipping)
-    toolkit.register_tool_function(run_step6_consistency_verification)
-    toolkit.register_tool_function(run_step7_phenotype_knowledge_confirmation)
+    toolkit.register_tool_function(_bind_memory_toggle(run_step4_data_quality_repair))
+    toolkit.register_tool_function(_bind_memory_toggle(run_step5_task_oriented_clipping))
+    toolkit.register_tool_function(_bind_memory_toggle(run_step6_consistency_verification))
+    toolkit.register_tool_function(_bind_memory_toggle(run_step7_phenotype_knowledge_confirmation))
 
     sys_prompt = f"""你是数据处理流水线的主协调者 (Orchestrator)。
 你的任务是接收用户输入，并调用工具完成数据处理流水线。
@@ -93,8 +119,8 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
 5. 在 `run_step5_task_oriented_clipping` 成功返回后，继续调用且仅调用一次 `run_step6_consistency_verification`。
 6. 在 `run_step6_consistency_verification` 成功返回后，继续调用且仅调用一次 `run_step7_phenotype_knowledge_confirmation`。
 7. 如果工具支持 `context` 参数，把下方 ACE Playbook 原样传给工具。
-8. `run_step2_3_medical_data_cleaner` 会进入交互式阶段；只有当用户在该阶段输入 `quit` 后，工具才会返回。
-9. `run_step4_data_quality_repair` 默认会读取 `program/output/step2_3_results` 下最新的 `results_*` 目录作为输入。
+8. `run_step2_3_medical_data_cleaner` 会自动完成一次性处理并直接返回，不会进入交互式 `quit` 阶段。
+9. `run_step4_data_quality_repair` 优先读取 `program/output/step2_3_results/next_input/input.csv`，若不存在再回退到旧扫描逻辑。
 10. `run_step5_task_oriented_clipping` 输出固定写入 `program/output/step5_results`。
 11. `run_step6_consistency_verification` 与 `run_step7_phenotype_knowledge_confirmation` 的输入来自 `program/output/step5_results` 内最新 `*_filtered_*.csv`，输出写入 `program/output/step6-7_results`。
 12. 当你收到 `run_step7_phenotype_knowledge_confirmation` 的有效结果后，再将整个流水线结果总结输出给用户，然后结束当前任务。
@@ -125,7 +151,7 @@ def _build_orchestrator(context_str: str) -> ReActAgent:
     return register_no_thinking_print_hook(agent)
 
 
-async def main():
+async def main(enable_memory_agent: bool = True):
     agentscope.init(project="MultiAgentPipeline", name="MainOrchestrator")
 
     user = UserAgent(name="User")
@@ -145,9 +171,14 @@ async def main():
             if user_input.lower() in ["exit", "quit", "q"]:
                 break
 
+            if enable_memory_agent:
+                print("[Orchestrator] 本次运行启用 memory_agent。")
+            else:
+                print("[Orchestrator] 本次运行已关闭 memory_agent。")
+
             print("[Orchestrator] 正在按本轮输入检索 ACE Playbook...")
             context_str, used_bullet_ids = await get_pipeline_context(query_text=user_input)
-            orchestrator = _build_orchestrator(context_str)
+            orchestrator = _build_orchestrator(context_str, enable_memory_agent=enable_memory_agent)
 
             start_time = time.time()
 
@@ -163,7 +194,11 @@ async def main():
 
             if not any(step.get("step_name") == "Step2_3 医学数据清洗与标准化" for step in trace_collector.steps):
                 print("[Orchestrator] 未检测到 Step2_3，进行兜底补跑...")
-                step2_result = await run_step2_3_medical_data_cleaner("", context_str)
+                step2_result = await run_step2_3_medical_data_cleaner(
+                    "",
+                    context_str,
+                    enable_memory_agent=enable_memory_agent,
+                )
                 msg = Msg(name="system", content=step2_result.content, role="system")
 
             duration = time.time() - start_time
@@ -179,4 +214,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    args = parse_args()
+    asyncio.run(main(enable_memory_agent=not args.disable_memory_agent))

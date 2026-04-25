@@ -15,6 +15,7 @@ DEFAULT_OBSERVATIONS = {
     "should_split": False,
     "id_column": None,
 }
+_STEP1_RECORDS_PATH: Path | None = None
 
 
 def classify_tabular_suffix(filename: str) -> str | None:
@@ -51,7 +52,19 @@ def extract_patient_id(source_path: str, content_text: str = "") -> str | None:
     return None
 
 
+def set_step1_records_path(records_path: Path | str | None) -> None:
+    global _STEP1_RECORDS_PATH
+    _STEP1_RECORDS_PATH = Path(records_path) if records_path else None
+
+
+def clear_step1_records_path() -> None:
+    global _STEP1_RECORDS_PATH
+    _STEP1_RECORDS_PATH = None
+
+
 def _records_path() -> Path:
+    if _STEP1_RECORDS_PATH is not None:
+        return _STEP1_RECORDS_PATH
     return Path.cwd() / "reorganized_output" / "_meta" / "records.json"
 
 
@@ -268,8 +281,8 @@ def validate_reorganized_contract(input_path: str, output_root: str, records_pat
     for file_path in output_files[:10]:
         relative_path = file_path.relative_to(output_root)
         sample_paths.append(str(relative_path))
-        if len(relative_path.parts) != 3:
-            issues.append("输出路径层级不是 id/模态/文件")
+        if len(relative_path.parts) < 3:
+            issues.append("输出路径层级至少应为 id/模态/文件，允许中间目录")
         if file_path.suffix.lower() in {".csv", ".tsv"}:
             lines = file_path.read_text(encoding="utf-8").splitlines()
             if not lines or ("," not in lines[0] and "\t" not in lines[0]):

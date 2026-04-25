@@ -35,6 +35,23 @@ agents:
     temperature: 0.0
     seed: 666
 
+  # Step4 数据质量修复智能体
+  step4_data_quality_repair:
+    backend: "openai"
+    model_name: "qwen3.5:9b"
+    temperature: 0.0
+    seed: 666
+    max_columns: 
+    ollama:
+      model_name: "qwen3.5:9b"
+      temperature: 0.0
+      seed: 666
+    openai:
+      model_name: "gpt-5.4"
+      api_base: "http://127.0.0.1:8317/v1"
+      temperature: 0.0
+      timeout: 120
+
 # 通用全局设置
 global:
   default_temperature: 0.0

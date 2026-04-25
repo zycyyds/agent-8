@@ -7,6 +7,7 @@ import re
 import shutil
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -18,7 +19,6 @@ from agentscope.message import Msg
 from agentscope.model import OllamaChatModel
 from agentscope.tool import ToolResponse
 
-from agent_1.agentscope_tool_loader import load_toolkit_from_config
 from memory_agent.config import config
 from memory_agent.memory_tool import get_playbook_context_data
 from memory_supervisor import report_pipeline_result
@@ -530,6 +530,27 @@ async def report_last_step_reflection(
     return await report_pipeline_result(payload, used_bullet_ids=retrieved_bullet_ids)
 
 
+async def maybe_report_last_step_reflection(
+    *,
+    step_label: str,
+    enable_memory_agent: bool,
+    input_text: str,
+    duration_seconds: float,
+    orchestrator_summary: str,
+    retrieved_bullet_ids: list[str] | None = None,
+) -> str | None:
+    if not enable_memory_agent:
+        print(f"[Memory Supervisor {step_label}] 已关闭，跳过反思。")
+        return None
+
+    return await report_last_step_reflection(
+        input_text=input_text,
+        duration_seconds=duration_seconds,
+        orchestrator_summary=orchestrator_summary,
+        retrieved_bullet_ids=retrieved_bullet_ids,
+    )
+
+
 def _get_project_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -591,9 +612,12 @@ def _get_step67_step7_output_dir() -> str:
 
 
 def _get_default_step2_3_input_path(input_data: str) -> str:
+    step1_results_dir = _get_step1_results_dir()
+    if os.path.isdir(step1_results_dir):
+        return step1_results_dir
     if input_data and os.path.isdir(str(input_data)):
         return str(input_data)
-    return _get_step1_results_dir()
+    return step1_results_dir
 
 
 def _get_default_step4_input_path(input_data: str) -> str:
@@ -641,73 +665,17 @@ def _get_default_step5_input_csv() -> str:
 
 def _get_default_step5_task_text() -> str:
     return (
-        "Identify factors associated with mortality risk and length of stay "
-        "among hospitalized patients with cirrhosis or hepatic failure."
+        "Analyze vestibular function test results to identify patients with "
+        "abnormal eye movement patterns and nystagmus-related findings."
     )
 
 
-def _resolve_step2_3_cleaner_root() -> str:
-    candidate_roots = [
-        os.path.join(_get_project_root(), "agent_2-3"),
-        os.path.join(
-            _get_project_root(),
-            "medical-data-pipeline-public",
-            "step1_5_medical_data_cleaner",
-        ),
-    ]
-    cleaner_root = next((path for path in candidate_roots if os.path.isdir(path)), "")
-    if not cleaner_root:
-        raise FileNotFoundError(
-            "未找到 Step2_3 清洗目录，已尝试: "
-            + " | ".join(candidate_roots)
-        )
-    return cleaner_root
-
-
-def _load_step1_5_cleaner_components():
-    cleaner_root = _resolve_step2_3_cleaner_root()
-
-    if cleaner_root not in sys.path:
-        sys.path.insert(0, cleaner_root)
-
-    main_module = importlib.import_module("main")
-    agent_module = importlib.import_module("agents.unified_processing_agent")
-    return main_module.process_single_input, main_module.run_interactive_session, agent_module.UnifiedProcessingAgent
-
-
-def _load_step2_3_liver_notes_components():
-    cleaner_root = _resolve_step2_3_cleaner_root()
-
-    module_path = os.path.join(cleaner_root, "process_liver_notes.py")
-    if not os.path.isfile(module_path):
-        raise FileNotFoundError(f"未找到 liver notes 处理脚本: {module_path}")
-
-    module_name = "_step2_3_process_liver_notes"
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"无法加载 liver notes 模块: {module_path}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    sys.modules[module_name] = module
-    return module.setup_liver_agents, module.batch_process_liver_notes
-
-
-def _resolve_step2_3_liver_jsonl_path(data_dir: str) -> str:
-    candidates = [
-        os.path.join(data_dir, "table", "liver_patients_note", "liver_patients_note.jsonl"),
-        os.path.join(data_dir, "liver_patients_note", "table", "liver_patients_note.jsonl"),
-        os.path.join(data_dir, "table", "liver_patients_note.jsonl"),
-    ]
-    for path in candidates:
-        if os.path.isfile(path):
-            return path
-    return ""
-
-
-def _should_auto_step2_3_liver_notes() -> bool:
-    value = os.environ.get("STEP2_3_AUTO_LIVER_NOTES", "false")
-    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+def _load_step2_3_react_agent_class():
+    project_root = _get_project_root()
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    react_agent_module = importlib.import_module("agent_2.agents.react_agent")
+    return getattr(react_agent_module, "ReactMedicalAgent")
 
 
 def _resolve_step2_3_output_csv_for_next_input(output_dir: str, started_at: float) -> str:
@@ -743,27 +711,6 @@ def _resolve_step2_3_output_csv_for_next_input(output_dir: str, started_at: floa
     return pool[0]
 
 
-def _build_step2_3_liver_summary(
-    data_dir: str,
-    result_jsonl: str,
-    result_csv: str,
-    fields_json: str,
-    next_input_csv: str = "",
-) -> str:
-    lines = [
-        "Step2_3: liver notes JSONL 专项抽取完成。",
-        f"输入目录: {data_dir}",
-        f"输出JSONL: {result_jsonl}",
-    ]
-    if result_csv:
-        lines.append(f"输出CSV: {result_csv}")
-    if fields_json:
-        lines.append(f"字段分析: {fields_json}")
-    if next_input_csv:
-        lines.append(f"传递给Step4(next_input): {next_input_csv}")
-    return "\n".join(lines)
-
-
 def _summarize_step2_3_event(event: dict[str, Any]) -> str:
     pieces = [f"event={event.get('event', 'unknown')}"]
     if event.get("mode"):
@@ -780,48 +727,82 @@ def _summarize_step2_3_event(event: dict[str, Any]) -> str:
 
 
 def _build_step2_3_trace_payload(result: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    assistant_outputs: list[dict[str, Any]] = []
-    tool_events: list[dict[str, Any]] = []
-    for index, event in enumerate(result.get("session_events", []), 1):
-        if not isinstance(event, dict):
-            continue
+    success = bool(result.get("success"))
+    input_dir = str(result.get("input_dir") or "")
+    data_type = str(result.get("data_type") or "unknown")
+    output_dir = str(result.get("output_dir") or "")
+    output_csv = str(
+        result.get("output_csv")
+        or result.get("output_merged_csv")
+        or result.get("output_patients_csv")
+        or result.get("output_file")
+        or ""
+    )
+    next_input_csv = str(result.get("next_input_csv") or "")
+    error_text = str(result.get("error") or "")
+    statistics = result.get("statistics") or {}
+
+    summary_text = (
+        f"input_dir={input_dir} | data_type={data_type} | output_dir={output_dir} | "
+        f"output_csv={output_csv} | next_input_csv={next_input_csv} | success={success}"
+    )
+    assistant_outputs = [
+        {
+            "role": "assistant",
+            "name": "step2_3_runner",
+            "content_blocks": [{"type": "text", "text": summary_text}],
+        }
+    ]
+    if next_input_csv:
         assistant_outputs.append(
             {
                 "role": "assistant",
-                "name": f"step2_3_session_{index}",
-                "content_blocks": [{"type": "text", "text": _summarize_step2_3_event(event)}],
+                "name": "step2_3_next_input",
+                "content_blocks": [{"type": "text", "text": f"next_input_csv={next_input_csv}"}],
             }
         )
-        if event.get("next_input_csv"):
-            assistant_outputs.append(
-                {
-                    "role": "assistant",
-                    "name": f"step2_3_next_input_{index}",
-                    "content_blocks": [{"type": "text", "text": f"next_input_csv={event['next_input_csv']}"}],
-                }
-            )
-        event_name = str(event.get("event") or "session_event")
-        event_target = str(event.get("target") or event.get("input") or "")
-        event_output_parts = []
-        if event.get("data_type"):
-            event_output_parts.append(f"data_type={event['data_type']}")
-        if event.get("statistics"):
-            event_output_parts.append(json.dumps(event["statistics"], ensure_ascii=False))
-        if event.get("stats"):
-            event_output_parts.append(json.dumps(event["stats"], ensure_ascii=False))
-        if event.get("output_file"):
-            event_output_parts.append(f"output_file={event['output_file']}")
-        if event.get("next_input_csv"):
-            event_output_parts.append(f"next_input_csv={event['next_input_csv']}")
-        if event.get("error"):
-            event_output_parts.append(f"error={event['error']}")
+
+    tool_events = [
+        {
+            "tool_name": "step2_3_detect_input",
+            "tool_input": {"input_dir": input_dir},
+            "tool_output": f"data_type={data_type}",
+            "status": "succeeded" if input_dir else "failed",
+            "error": "" if input_dir else "缺少 Step2_3 输入目录",
+        },
+        {
+            "tool_name": "step2_3_run_react_agent",
+            "tool_input": {"input_dir": input_dir, "output_dir": output_dir},
+            "tool_output": (
+                f"output_dir={output_dir} | output_csv={output_csv} | "
+                f"statistics={json.dumps(statistics, ensure_ascii=False)}"
+            ),
+            "status": "succeeded" if success else "failed",
+            "error": error_text if not success else "",
+        },
+        {
+            "tool_name": "step2_3_select_next_input",
+            "tool_input": {"output_dir": output_dir},
+            "tool_output": f"selected_csv={output_csv}",
+            "status": "succeeded" if output_csv else "failed",
+            "error": "" if output_csv else (error_text or "未找到可发布给 Step4 的 CSV"),
+        },
+        {
+            "tool_name": "step2_3_publish_next_input",
+            "tool_input": {"source_csv": output_csv},
+            "tool_output": f"next_input_csv={next_input_csv}",
+            "status": "succeeded" if next_input_csv else "failed",
+            "error": "" if next_input_csv else (error_text or "未发布 Step4 输入文件"),
+        },
+    ]
+    if error_text:
         tool_events.append(
             {
-                "tool_name": f"step2_3_{event_name}",
-                "tool_input": {"input": event_target, "mode": event.get("mode")},
-                "tool_output": " | ".join(part for part in event_output_parts if part),
-                "status": "succeeded" if event.get("success", False) else "failed",
-                "error": str(event.get("error") or ""),
+                "tool_name": "step2_3_error",
+                "tool_input": {"input_dir": input_dir},
+                "tool_output": error_text,
+                "status": "failed",
+                "error": error_text,
             }
         )
     return assistant_outputs, tool_events
@@ -831,38 +812,48 @@ def _build_step2_3_summary(data_dir: str, result: dict[str, Any]) -> str:
     if not result:
         return f"Step2_3: 未返回结果。输入目录: {data_dir}"
 
-    if "quit_reason" in result:
+    if not result.get("success"):
         lines = [
-            "Step2_3: 医学数据清洗与标准化交互会话结束。",
+            "Step2_3: 医学数据清洗与标准化失败。",
             f"输入目录: {data_dir}",
-            f"退出方式: {result.get('quit_reason', 'unknown')}",
-            f"处理轮次: {result.get('processed_inputs', 0)}",
-            f"成功次数: {result.get('success_count', 0)}",
-            f"失败次数: {result.get('failure_count', 0)}",
-            f"切换分析模式次数: {result.get('analyze_requests', 0)}",
-            f"查看统计次数: {result.get('stats_requests', 0)}",
+            f"数据类型: {result.get('data_type', 'unknown')}",
+            f"输出目录: {result.get('output_dir', '')}",
+            f"错误: {result.get('error', 'unknown error')}",
         ]
-        if result.get("last_input"):
-            lines.append(f"最后一次输入: {result['last_input']}")
-        if result.get("output_dir"):
-            lines.append(f"输出目录: {result['output_dir']}")
-        if result.get("last_error"):
-            lines.append(f"最后错误: {result['last_error']}")
+        output_csv = str(
+            result.get("output_csv")
+            or result.get("output_merged_csv")
+            or result.get("output_patients_csv")
+            or result.get("output_file")
+            or ""
+        )
+        if output_csv:
+            lines.append(f"候选输出CSV: {output_csv}")
         return "\n".join(lines)
 
-    if not result.get("success"):
-        return (
-            f"Step2_3: 医学数据清洗与标准化失败。\n"
-            f"输入目录: {data_dir}\n"
-            f"错误: {result.get('error', 'unknown error')}"
-        )
-
-    stats = result.get("statistics", {})
+    stats = result.get("statistics") or {}
+    output_csv = str(
+        result.get("output_csv")
+        or result.get("output_merged_csv")
+        or result.get("output_patients_csv")
+        or result.get("output_file")
+        or ""
+    )
     lines = [
         "Step2_3: 医学数据清洗与标准化完成。",
         f"输入目录: {data_dir}",
         f"数据类型: {result.get('data_type', 'unknown')}",
+        f"输出目录: {result.get('output_dir', '')}",
     ]
+
+    if output_csv:
+        lines.append(f"主输出CSV: {output_csv}")
+    if result.get("output_json"):
+        lines.append(f"输出JSON: {result.get('output_json', '')}")
+    if result.get("output_entities_csv"):
+        lines.append(f"实体CSV: {result.get('output_entities_csv', '')}")
+    if result.get("output_patients_csv"):
+        lines.append(f"患者CSV: {result.get('output_patients_csv', '')}")
 
     if result.get("data_type") == "directory":
         lines.extend(
@@ -874,29 +865,18 @@ def _build_step2_3_summary(data_dir: str, result: dict[str, Any]) -> str:
             ]
         )
     elif stats:
-        lines.extend(
-            [
-                f"总行数: {stats.get('total_rows', 'N/A')}",
-                f"术语标准化成功数: {stats.get('terms_standardized', 0)}",
-                f"量纲统一数: {stats.get('values_normalized', 0)}",
-            ]
-        )
-
-    csv_results_folder = result.get("csv_results_folder")
-    if csv_results_folder:
-        lines.append(f"CSV结果目录: {csv_results_folder}")
-
-    output_files = result.get("output_files")
-    if isinstance(output_files, dict) and output_files:
-        lines.append(f"输出文件数: {len(output_files)}")
-
-    output_file = result.get("output_file")
-    if output_file:
-        lines.append(f"输出文件: {output_file}")
+        for key in ["total_rows", "row_count", "entity_count", "processed_files", "failed_files"]:
+            if stats.get(key) is not None:
+                lines.append(f"{key}: {stats.get(key)}")
 
     next_input_csv = str(result.get("next_input_csv") or "")
     if next_input_csv:
         lines.append(f"传递给Step4(next_input): {next_input_csv}")
+
+    message_text = str(result.get("message") or "").strip()
+    if message_text:
+        lines.append("Agent 摘要:")
+        lines.append(message_text)
 
     return "\n".join(lines)
 
@@ -1381,171 +1361,77 @@ def _prepare_step4_input_dir(input_dir: str, workspace_dir: str) -> tuple[str, i
     return prepared_csv, len(candidate_json)
 
 
-async def run_step1_modal_recognition(input_data: str, context: str = "") -> ToolResponse:
-    toolkit_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "agent_1",
-        "agentscope_tools.json",
-    )
-    toolkit = load_toolkit_from_config(toolkit_path)
-
-    base_sys_prompt = (
-        "你是一个布局分析助手。你只能使用工具完成图片布局分析、人工验证和数据集整理。并且保持和用户用中文交流。\n"
-        "【执行步骤】请严格按照以下步骤并必须只使用标准 JSON 格式调用所有工具，绝对禁止使用 `<tool_call>` 等 HTML/XML 标签。\n"
-        "1）优先调用 `Collect Image Files` 工具获取待处理的图片列表及 input_path；\n"
-        "2）调用 `Infer And Save Layout` 工具进行版面分析（执行后会自动更新分类结果）；\n"
-        "3）检查第 2 步返回的结果，如有 `ocr+figure` 模态，调用 `prepare_and_launch_validation_gui` 验证；\n"
-        "4）调用 `Organize Dataset By Modality` 整理数据集（必须传入 with_segmentation=True 参数）；\n"
-        "5）最后输出最终报告，且所有面向用户的总结、追问、报错都必须使用中文。"
-    )
-
+async def run_step1_modal_recognition(input_data: str, context: str = "", enable_memory_agent: bool = True) -> ToolResponse:
     if not context:
         context, _ = get_playbook_context_data(query_text=input_data)
 
-    full_sys_prompt = f"{base_sys_prompt}\n\n{context}" if context else base_sys_prompt
+    started_at = time.time()
+    output_root = _get_step1_results_dir()
+    status = "FAILED"
 
-    model = OllamaChatModel(
-        model_name=config.LLM_MODEL,
-        options={
-            "temperature": config.LLM_TEMPERATURE,
-            "seed": config.LLM_SEED,
-        },
-    )
-    agent = ReActAgent(
-        name="Agent-1-Modal-Identification",
-        sys_prompt=full_sys_prompt,
-        model=model,
-        formatter=ThinkingSafeOllamaChatFormatter(),
-        toolkit=toolkit,
-        memory=InMemoryMemory(),
-        max_iters=20,
-    )
-
-    msg = Msg(name="orchestrator", content=input_data, role="user")
-    result_msg = await agent(msg)
-
-    output_str = _format_message_blocks(result_msg.content)
-
-    thinking_chain = []
-    raw_messages = []
-    full_raw_messages = []
-    truncated_flags: list[str] = []
     try:
-        for mem_msg in await agent.memory.get_memory():
-            normalized_blocks, block_flags = _normalize_content_blocks(getattr(mem_msg, "content", ""))
-            full_blocks, _ = _normalize_content_blocks(getattr(mem_msg, "content", ""), truncate=False)
-            raw_messages.append({
-                "role": getattr(mem_msg, "role", "unknown"),
-                "name": getattr(mem_msg, "name", ""),
-                "content_blocks": normalized_blocks,
-            })
-            full_raw_messages.append({
-                "role": getattr(mem_msg, "role", "unknown"),
-                "name": getattr(mem_msg, "name", ""),
-                "content_blocks": full_blocks,
-            })
-            thinking_chain.append({
-                "role": getattr(mem_msg, "role", "unknown"),
-                "name": getattr(mem_msg, "name", ""),
-                "content": _format_message_blocks(getattr(mem_msg, "content", "")),
-            })
-            truncated_flags.extend(block_flags)
+        from agent_1.codegen_agent import run_step1_codegen
+
+        result = await run_step1_codegen(
+            input_path=input_data,
+            output_root=Path(output_root),
+            emit=print,
+        )
+        runtime_result = result.get("runtime_result", {}) if isinstance(result, dict) else {}
+        status = str(result.get("status") or runtime_result.get("status") or "FAILED")
+        summary_text = str(result.get("summary_text") or runtime_result.get("summary_text") or "").strip()
+        issues = runtime_result.get("issues") or []
+        issue_text = ""
+        if issues:
+            issue_text = "\n问题：\n" + "\n".join(f"- {item}" for item in issues)
+        output_str = (
+            f"Step1: 数据感知与模态识别{'完成' if status == 'SUCCESS' else '失败'}。\n"
+            f"输入路径: {input_data}\n"
+            f"输出目录: {result.get('step1_output_root', output_root)}\n"
+            f"records: {result.get('records_path', '')}\n"
+            f"生成脚本: {result.get('generated_script_path', '')}\n"
+            f"摘要:\n{summary_text or '(无摘要)'}{issue_text}"
+        )
+        raw_messages = result.get("raw_messages", []) if isinstance(result, dict) else []
+        tool_events = result.get("tool_events", []) if isinstance(result, dict) else []
     except Exception as e:
-        thinking_chain.append({"role": "error", "name": "extract_failed", "content": str(e)})
-        raw_messages.append({
-            "role": "error",
-            "name": "extract_failed",
-            "content_blocks": [{"type": "text", "text": str(e)}],
-        })
-        full_raw_messages.append({
-            "role": "error",
-            "name": "extract_failed",
-            "content_blocks": [{"type": "text", "text": str(e)}],
-        })
-        truncated_flags.append("memory_extract_failed")
-
-    tool_events = _extract_tool_events(raw_messages)
-    full_tool_events = _extract_tool_events(full_raw_messages)
-
-    fallback_event = _maybe_run_step1_organize_fallback(toolkit_path, full_tool_events)
-    if fallback_event:
-        fallback_note = "检测到模型未真正执行 `Organize Dataset By Modality`，包装层已按固定流程补跑数据整理。"
-        assistant_blocks = [
-            {"type": "text", "text": fallback_note},
+        output_str = (
+            "Step1: 数据感知与模态识别执行失败。\n"
+            f"输入路径: {input_data}\n错误: {e}"
+        )
+        raw_messages = []
+        tool_events = [
             {
-                "type": "tool_use",
-                "id": fallback_event["event_id"],
-                "name": fallback_event["tool_name"],
-                "input": fallback_event["tool_input"],
-            },
-        ]
-        system_blocks = [
-            {
-                "type": "tool_result",
-                "id": fallback_event["event_id"],
-                "name": fallback_event["tool_name"],
-                "output": fallback_event["tool_output"],
+                "tool_name": "run_step1_codegen",
+                "tool_input": {"input_path": input_data, "output_root": output_root},
+                "tool_output": str(e),
+                "status": "failed",
+                "error": str(e),
             }
         ]
-
-        normalized_assistant, assistant_flags = _normalize_content_blocks(assistant_blocks)
-        normalized_system, system_flags = _normalize_content_blocks(system_blocks)
-        full_assistant, _ = _normalize_content_blocks(assistant_blocks, truncate=False)
-        full_system, _ = _normalize_content_blocks(system_blocks, truncate=False)
-
-        raw_messages.extend(
-            [
-                {"role": "assistant", "name": "step1_wrapper", "content_blocks": normalized_assistant},
-                {"role": "system", "name": "step1_wrapper", "content_blocks": normalized_system},
-            ]
-        )
-        full_raw_messages.extend(
-            [
-                {"role": "assistant", "name": "step1_wrapper", "content_blocks": full_assistant},
-                {"role": "system", "name": "step1_wrapper", "content_blocks": full_system},
-            ]
-        )
-        thinking_chain.extend(
-            [
-                {
-                    "role": "assistant",
-                    "name": "step1_wrapper",
-                    "content": _format_message_blocks(assistant_blocks),
-                },
-                {
-                    "role": "system",
-                    "name": "step1_wrapper",
-                    "content": _format_message_blocks(system_blocks),
-                },
-            ]
-        )
-        truncated_flags.extend(assistant_flags)
-        truncated_flags.extend(system_flags)
-
-        tool_events = _extract_tool_events(raw_messages)
-        full_tool_events = _extract_tool_events(full_raw_messages)
-        output_str = f"{output_str}\n\n[系统兜底]\n{fallback_note}\n{fallback_event['tool_output']}"
 
     _trace_collector.record_step(
         step_name="数据感知与模态识别",
         input_data=input_data,
         output_content=output_str,
         context=context,
-        thinking_chain=thinking_chain,
         raw_messages=raw_messages,
-        full_raw_messages=full_raw_messages,
+        full_raw_messages=raw_messages,
         tool_events=tool_events,
-        full_tool_events=full_tool_events,
-        truncated_flags=truncated_flags,
+        full_tool_events=tool_events,
     )
-    memory_feedback = await report_last_step_reflection(
-        input_text=input_data,
-        duration_seconds=0.0,
-        orchestrator_summary=output_str,
-        retrieved_bullet_ids=[],
-    )
-    if memory_feedback:
-        print(f"\n[Memory Supervisor Step1 反思结果]\n{memory_feedback}\n")
+    if status == "SUCCESS":
+        duration = time.time() - started_at
+        memory_feedback = await maybe_report_last_step_reflection(
+            step_label="Step1",
+            enable_memory_agent=enable_memory_agent,
+            input_text=input_data,
+            duration_seconds=duration,
+            orchestrator_summary=output_str,
+            retrieved_bullet_ids=[],
+        )
+        if memory_feedback:
+            print(f"\n[Memory Supervisor Step1 反思结果]\n{memory_feedback}\n")
 
     return ToolResponse(content=output_str)
 
@@ -1561,7 +1447,7 @@ async def run_step2_parse_extract(input_data: str, context: str = "") -> ToolRes
     return ToolResponse(content=output)
 
 
-async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -> ToolResponse:
+async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "", enable_memory_agent: bool = True) -> ToolResponse:
     data_dir = _get_default_step2_3_input_path(input_data)
     output_dir = _get_step2_3_results_dir()
     started_at = time.time()
@@ -1569,130 +1455,62 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
     session_tool_events: list[dict[str, Any]] = []
 
     try:
-        auto_liver = _should_auto_step2_3_liver_notes()
-        liver_jsonl_path = _resolve_step2_3_liver_jsonl_path(data_dir) if auto_liver else ""
+        ReactMedicalAgent = _load_step2_3_react_agent_class()
+        from agentscope.message import Msg
 
-        if liver_jsonl_path:
-            print(f"[Step2_3] 检测到 liver jsonl，且已开启自动专项处理: {liver_jsonl_path}")
-            setup_liver_agents, batch_process_liver_notes = _load_step2_3_liver_notes_components()
-            med_agent, std_agent = setup_liver_agents()
-            if med_agent is None:
-                raise RuntimeError("未能初始化 liver notes 抽取 Agent（请检查 OPENAI_API_KEY / MODEL_NAME / OPENAI_API_BASE 配置）")
-
-            liver_output_dir = os.path.join(output_dir, "liver_notes")
-            liver_out_jsonl = await batch_process_liver_notes(
-                jsonl_path=liver_jsonl_path,
-                med_agent=med_agent,
-                std_agent=std_agent,
-                output_dir=liver_output_dir,
-                max_records=None,
-                verbose=True,
-            )
-            if not liver_out_jsonl or not os.path.isfile(liver_out_jsonl):
-                raise FileNotFoundError(f"liver notes 处理未生成 JSONL 输出: {liver_out_jsonl}")
-
-            liver_out_csv = liver_out_jsonl.replace(".jsonl", ".csv")
-            liver_fields_json = ""
-            liver_basename = os.path.basename(liver_out_jsonl)
-            ts_match = re.search(r"liver_notes_extracted_(\d{8}_\d{6})\.jsonl$", liver_basename)
-            if ts_match:
-                candidate_fields = os.path.join(liver_output_dir, f"extraction_fields_{ts_match.group(1)}.json")
-                if os.path.isfile(candidate_fields):
-                    liver_fields_json = candidate_fields
-
-            next_input_csv = ""
-            if os.path.isfile(liver_out_csv):
-                next_input_csv = _publish_next_input_file(
-                    source_path=liver_out_csv,
-                    target_dir=_get_step2_3_next_input_dir(),
-                )
-
-            output = _build_step2_3_liver_summary(
-                data_dir=data_dir,
-                result_jsonl=liver_out_jsonl,
-                result_csv=liver_out_csv if os.path.isfile(liver_out_csv) else "",
-                fields_json=liver_fields_json,
-                next_input_csv=next_input_csv,
-            )
-            session_messages = [
-                {
-                    "role": "assistant",
-                    "name": "step2_3_liver_notes",
-                    "content_blocks": [
-                        {
-                            "type": "text",
-                            "text": (
-                                f"mode=liver_notes | input={liver_jsonl_path} | "
-                                f"output_jsonl={liver_out_jsonl} | next_input_csv={next_input_csv}"
-                            ),
-                        }
-                    ],
-                }
-            ]
-            session_tool_events = [
-                {
-                    "tool_name": "step2_3_liver_notes_batch_process",
-                    "tool_input": {"jsonl_path": liver_jsonl_path, "output_dir": liver_output_dir},
-                    "tool_output": output,
-                    "status": "succeeded",
-                    "error": "",
-                },
-                {
-                    "tool_name": "step2_3_publish_next_input",
-                    "tool_input": {"source_csv": liver_out_csv},
-                    "tool_output": f"next_input_csv={next_input_csv}",
-                    "status": "succeeded" if next_input_csv else "failed",
-                    "error": "" if next_input_csv else "未发布 Step4 输入文件",
-                },
-            ]
-        elif not sys.stdin or not sys.stdin.isatty():
-            output = (
-                "Step2_3: 当前环境不支持交互式医学数据清洗。\n"
-                f"默认目录: {data_dir}\n"
-                "原因: 标准输入不是交互终端（non-TTY）。"
-            )
-        else:
-            _, run_interactive_session, UnifiedProcessingAgent = _load_step1_5_cleaner_components()
-            agent = UnifiedProcessingAgent(
-                name="Step2_3MedicalCleaner",
-                use_llm=True,
-                use_umls=True,
-                verbose=False,
-            )
-            print("\n[Step2_3] 已进入交互模式。输入文件/目录路径开始处理，输入 'quit' 结束当前 Step2_3 并返回主编排器。")
-            result = await run_interactive_session(
-                agent=agent,
-                output_dir=output_dir,
-                show_banner=True,
-            )
+        agent = ReactMedicalAgent(
+            name="Step2_3MedicalCleaner",
+            use_llm=True,
+            verbose=False,
+            output_dir=output_dir,
+        )
+        response = await agent.reply(Msg(name="user", content=data_dir, role="user"))
+        metadata = response.metadata if hasattr(response, "metadata") and response.metadata else {}
+        content = response.content if hasattr(response, "content") else ""
+        result = dict(metadata) if isinstance(metadata, dict) else {}
+        result["input_dir"] = data_dir
+        result["output_dir"] = str(result.get("output_dir") or output_dir)
+        result["message"] = str(content).strip() if isinstance(content, str) else str(content)
+        result["success"] = bool(result.get("success"))
+        output_csv = str(result.get("output_csv") or "")
+        output_merged_csv = str(result.get("output_merged_csv") or "")
+        output_patients_csv = str(result.get("output_patients_csv") or "")
+        output_file = str(result.get("output_file") or "")
+        next_input_source_csv = output_csv or output_merged_csv or output_patients_csv or output_file
+        if not next_input_source_csv:
             next_input_source_csv = _resolve_step2_3_output_csv_for_next_input(
-                output_dir=output_dir,
+                output_dir=result["output_dir"],
                 started_at=started_at,
             )
-            next_input_csv = _publish_next_input_file(
-                source_path=next_input_source_csv,
-                target_dir=_get_step2_3_next_input_dir(),
-            )
-            if next_input_csv:
-                result["next_input_csv"] = next_input_csv
-                result.setdefault("session_events", []).append(
-                    {
-                        "event": "publish_next_input",
-                        "mode": "process",
-                        "target": next_input_source_csv,
-                        "success": True,
-                        "output_file": next_input_csv,
-                        "next_input_csv": next_input_csv,
-                    }
-                )
-            summary_input_dir = str(result.get("last_input") or data_dir)
-            output = _build_step2_3_summary(summary_input_dir, result)
-            session_messages, session_tool_events = _build_step2_3_trace_payload(result)
-    except Exception as e:
-        output = (
-            "Step2_3: 医学数据清洗与标准化执行失败。\n"
-            f"默认目录: {data_dir}\n错误: {e}"
+        result["output_csv"] = output_csv or (next_input_source_csv if next_input_source_csv.lower().endswith('.csv') else "")
+        next_input_csv = _publish_next_input_file(
+            source_path=next_input_source_csv,
+            target_dir=_get_step2_3_next_input_dir(),
+            target_name="input.csv",
         )
+        if next_input_csv:
+            result["next_input_csv"] = next_input_csv
+        elif result.get("success"):
+            result["success"] = False
+            result["error"] = str(result.get("error") or "未找到可发布给 Step4 的 CSV")
+        output = _build_step2_3_summary(data_dir, result)
+        session_messages, session_tool_events = _build_step2_3_trace_payload(result)
+    except Exception as e:
+        result = {
+            "success": False,
+            "input_dir": data_dir,
+            "output_dir": output_dir,
+            "data_type": None,
+            "statistics": {},
+            "output_file": "",
+            "output_csv": "",
+            "output_patients_csv": "",
+            "next_input_csv": "",
+            "message": "",
+            "error": str(e),
+        }
+        output = _build_step2_3_summary(data_dir, result)
+        session_messages, session_tool_events = _build_step2_3_trace_payload(result)
 
     _trace_collector.record_step(
         step_name="Step2_3 医学数据清洗与标准化",
@@ -1705,7 +1523,9 @@ async def run_step2_3_medical_data_cleaner(input_data: str, context: str = "") -
         full_tool_events=session_tool_events,
     )
     duration = time.time() - started_at
-    memory_feedback = await report_last_step_reflection(
+    memory_feedback = await maybe_report_last_step_reflection(
+        step_label="Step2_3",
+        enable_memory_agent=enable_memory_agent,
         input_text=data_dir,
         duration_seconds=duration,
         orchestrator_summary=output,
@@ -1727,7 +1547,7 @@ async def run_step3_semantic_standardization(input_data: str, context: str = "")
     return ToolResponse(content=output)
 
 
-async def run_step4_data_quality_repair(input_data: str, context: str = "") -> ToolResponse:
+async def run_step4_data_quality_repair(input_data: str, context: str = "", enable_memory_agent: bool = True) -> ToolResponse:
     data_dir = _get_default_step4_input_path(input_data)
     project_root = _get_project_root()
     workspace_dir = _get_step4_results_dir()
@@ -1742,7 +1562,9 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
             output_content=output,
             context=context,
         )
-        memory_feedback = await report_last_step_reflection(
+        memory_feedback = await maybe_report_last_step_reflection(
+            step_label="Step4",
+            enable_memory_agent=enable_memory_agent,
             input_text=data_dir,
             duration_seconds=0.0,
             orchestrator_summary=output,
@@ -1831,7 +1653,9 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
         full_tool_events=session_tool_events,
     )
     duration = time.time() - started_at
-    memory_feedback = await report_last_step_reflection(
+    memory_feedback = await maybe_report_last_step_reflection(
+        step_label="Step4",
+        enable_memory_agent=enable_memory_agent,
         input_text=data_dir,
         duration_seconds=duration,
         orchestrator_summary=output,
@@ -1842,7 +1666,7 @@ async def run_step4_data_quality_repair(input_data: str, context: str = "") -> T
     return ToolResponse(content=output)
 
 
-async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -> ToolResponse:
+async def run_step5_task_oriented_clipping(input_data: str, context: str = "", enable_memory_agent: bool = True) -> ToolResponse:
     input_csv = _get_default_step5_input_csv()
     task_text = _get_default_step5_task_text()
     output_dir = _get_step5_results_dir()
@@ -1872,7 +1696,9 @@ async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -
             tool_events=session_tool_events,
             full_tool_events=session_tool_events,
         )
-        memory_feedback = await report_last_step_reflection(
+        memory_feedback = await maybe_report_last_step_reflection(
+            step_label="Step5",
+            enable_memory_agent=enable_memory_agent,
             input_text=input_csv,
             duration_seconds=0.0,
             orchestrator_summary=output,
@@ -1948,7 +1774,9 @@ async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -
         full_tool_events=session_tool_events,
     )
     duration = time.time() - started_at
-    memory_feedback = await report_last_step_reflection(
+    memory_feedback = await maybe_report_last_step_reflection(
+        step_label="Step5",
+        enable_memory_agent=enable_memory_agent,
         input_text=input_csv,
         duration_seconds=duration,
         orchestrator_summary=output,
@@ -1959,7 +1787,7 @@ async def run_step5_task_oriented_clipping(input_data: str, context: str = "") -
     return ToolResponse(content=output)
 
 
-async def run_step6_consistency_verification(input_data: str, context: str = "") -> ToolResponse:
+async def run_step6_consistency_verification(input_data: str, context: str = "", enable_memory_agent: bool = True) -> ToolResponse:
     started_at = time.time()
     filtered_csv, selection_report = _resolve_latest_step5_artifacts()
     output_step6 = _get_step67_step6_output_dir()
@@ -1989,7 +1817,9 @@ async def run_step6_consistency_verification(input_data: str, context: str = "")
             tool_events=session_tool_events,
             full_tool_events=session_tool_events,
         )
-        memory_feedback = await report_last_step_reflection(
+        memory_feedback = await maybe_report_last_step_reflection(
+            step_label="Step6",
+            enable_memory_agent=enable_memory_agent,
             input_text=filtered_csv or input_data,
             duration_seconds=0.0,
             orchestrator_summary=output,
@@ -2057,7 +1887,9 @@ async def run_step6_consistency_verification(input_data: str, context: str = "")
         full_tool_events=session_tool_events,
     )
     duration = time.time() - started_at
-    memory_feedback = await report_last_step_reflection(
+    memory_feedback = await maybe_report_last_step_reflection(
+        step_label="Step6",
+        enable_memory_agent=enable_memory_agent,
         input_text=filtered_csv,
         duration_seconds=duration,
         orchestrator_summary=output,
@@ -2068,7 +1900,7 @@ async def run_step6_consistency_verification(input_data: str, context: str = "")
     return ToolResponse(content=output)
 
 
-async def run_step7_phenotype_knowledge_confirmation(input_data: str, context: str = "") -> ToolResponse:
+async def run_step7_phenotype_knowledge_confirmation(input_data: str, context: str = "", enable_memory_agent: bool = True) -> ToolResponse:
     started_at = time.time()
     filtered_csv, selection_report = _resolve_latest_step5_artifacts()
     output_step6 = _get_step67_step6_output_dir()
@@ -2152,7 +1984,9 @@ async def run_step7_phenotype_knowledge_confirmation(input_data: str, context: s
         full_tool_events=session_tool_events,
     )
     duration = time.time() - started_at
-    memory_feedback = await report_last_step_reflection(
+    memory_feedback = await maybe_report_last_step_reflection(
+        step_label="Step7",
+        enable_memory_agent=enable_memory_agent,
         input_text=filtered_csv,
         duration_seconds=duration,
         orchestrator_summary=output,

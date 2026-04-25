@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import json
 import shutil
 from pathlib import Path
@@ -5,216 +8,143 @@ from pathlib import Path
 import pandas as pd
 
 
-RAW_ROOT = Path("/Users/mkbk/PycharmProjects/agent-8/rawdata")
-OUTPUT_ROOT = Path("reorganized_output")
-RECORDS_PATH = OUTPUT_ROOT / "_meta" / "records.json"
+RAW_ROOT = Path("/Users/mkbk/PycharmProjects/step1-dataset-codegen/rawdata").resolve()
+OUTPUT_ROOT = Path(r"/Users/mkbk/PycharmProjects/step1-dataset-codegen/program/output/step1_results").resolve()
+RECORDS_PATH = Path(r"/Users/mkbk/PycharmProjects/step1-dataset-codegen/reorganized_output/_meta/records.json")
 
 
-def safe_patient_id(value):
-    if value is None:
+def safe_str(value):
+    if pd.isna(value):
         return None
-    text = str(value).strip()
-    if not text or text.lower() == "nan":
+    s = str(value).strip()
+    if not s:
         return None
-    if text.endswith(".0"):
-        text = text[:-2]
-    return text
+    if s.endswith(".0") and s[:-2].isdigit():
+        s = s[:-2]
+    return s
 
 
-def ensure_dir(path: Path):
-    path.mkdir(parents=True, exist_ok=True)
+def ensure_parent(path: Path):
+    path.parent.mkdir(parents=True, exist_ok=True)
 
 
-def copy_regular_file(record):
-    source_path = Path(record["source_path"])
-    patient_id = safe_patient_id(record.get("patient_id"))
-    observations = record.get("observations", {}) or {}
+def relative_parent_dirs(source_path: Path, raw_root: Path) -> Path:
+    rel = source_path.relative_to(raw_root)
+    parent = rel.parent
+    return Path() if str(parent) == "." else parent
+
+
+def copy_single_file(record: dict):
+    source_path = Path(record["source_path"]).resolve()
+    patient_id = record.get("patient_id")
+    observations = record.get("observations", {})
     modality = observations.get("modality")
 
-    if not patient_id or not modality:
-        return {
-            "status": "skipped",
-            "reason": "missing patient_id or modality",
-            "source": str(source_path),
-        }
+    if not patient_id:
+        print(f"[SKIP] 非表格文件缺少 patient_id: {source_path}")
+        return
 
-    if not source_path.exists():
-        return {
-            "status": "skipped",
-            "reason": "source not found",
-            "source": str(source_path),
-        }
+    if not modality:
+        print(f"[SKIP] 缺少 modality: {source_path}")
+        return
 
-    target_dir = OUTPUT_ROOT / patient_id / modality
-    ensure_dir(target_dir)
-    target_path = target_dir / source_path.name
-    shutil.copy2(source_path, target_path)
-
-    return {
-        "status": "copied",
-        "source": str(source_path),
-        "target": str(target_path),
-    }
+    rel_parent = relative_parent_dirs(source_path, RAW_ROOT)
+    dst = OUTPUT_ROOT / patient_id / modality / rel_parent / source_path.name
+    ensure_parent(dst)
+    shutil.copy2(source_path, dst)
+    print(f"[COPY] {source_path} -> {dst}")
 
 
-def split_table_file(record):
-    source_path = Path(record["source_path"])
-    observations = record.get("observations", {}) or {}
+def split_table_file(record: dict):
+    source_path = Path(record["source_path"]).resolve()
+    observations = record.get("observations", {})
     modality = observations.get("modality")
     should_split = observations.get("should_split", False)
     id_column = observations.get("id_column")
 
     if modality != "table":
-        return [{
-            "status": "skipped",
-            "reason": "not a table record",
-            "source": str(source_path),
-        }]
+        print(f"[SKIP] 非表格记录误入 split_table_file: {source_path}")
+        return
 
-    if not source_path.exists():
-        return [{
-            "status": "skipped",
-            "reason": "source not found",
-            "source": str(source_path),
-        }]
+    if not should_split:
+        print(f"[SKIP] 表格未标记拆分: {source_path}")
+        return
 
-    if not should_split or not id_column:
-        patient_id = safe_patient_id(record.get("patient_id"))
-        if not patient_id:
-            return [{
-                "status": "skipped",
-                "reason": "table not splittable and no patient_id",
-                "source": str(source_path),
-            }]
-        target_dir = OUTPUT_ROOT / patient_id / modality
-        ensure_dir(target_dir)
-        target_path = target_dir / source_path.name
-        shutil.copy2(source_path, target_path)
-        return [{
-            "status": "copied",
-            "source": str(source_path),
-            "target": str(target_path),
-        }]
+    if not id_column:
+        print(f"[SKIP] 表格缺少 id_column: {source_path}")
+        return
 
-    suffix = source_path.suffix.lower()
-    if suffix == ".xlsx":
-        df = pd.read_excel(source_path)
-    elif suffix == ".xls":
-        df = pd.read_excel(source_path)
-    elif suffix == ".csv":
-        df = pd.read_csv(source_path)
-    else:
-        return [{
-            "status": "skipped",
-            "reason": f"unsupported table format: {suffix}",
-            "source": str(source_path),
-        }]
+    rel_parent = relative_parent_dirs(source_path, RAW_ROOT)
 
-    if id_column not in df.columns:
-        return [{
-            "status": "skipped",
-            "reason": f"id_column '{id_column}' not found",
-            "source": str(source_path),
-        }]
+    try:
+        workbook = pd.read_excel(source_path, sheet_name=None)
+    except Exception as e:
+        print(f"[ERROR] 读取表格失败: {source_path} | {e}")
+        return
 
-    results = []
-    working_df = df.copy()
-    working_df[id_column] = working_df[id_column].apply(safe_patient_id)
-    working_df = working_df[working_df[id_column].notna()]
+    for sheet_name, df in workbook.items():
+        if df is None or df.empty:
+            print(f"[SKIP] 空工作表: {source_path} | sheet={sheet_name}")
+            continue
 
-    for patient_id, group in working_df.groupby(id_column, dropna=True):
-        target_dir = OUTPUT_ROOT / str(patient_id) / modality
-        ensure_dir(target_dir)
+        matched_col = None
+        for col in df.columns:
+            if str(col).strip() == str(id_column).strip():
+                matched_col = col
+                break
 
-        if suffix == ".csv":
-            out_name = f"{source_path.stem}_{patient_id}.csv"
-            target_path = target_dir / out_name
-            group.to_csv(target_path, index=False)
-        else:
-            out_name = f"{source_path.stem}_{patient_id}.xlsx"
-            target_path = target_dir / out_name
-            group.to_excel(target_path, index=False)
+        if matched_col is None:
+            print(f"[SKIP] 工作表未找到 id 列: {source_path} | sheet={sheet_name} | id_column={id_column}")
+            continue
 
-        results.append({
-            "status": "split_written",
-            "source": str(source_path),
-            "target": str(target_path),
-            "patient_id": str(patient_id),
-            "rows": int(len(group)),
-        })
+        work_df = df.copy()
+        work_df[matched_col] = work_df[matched_col].apply(safe_str)
+        work_df = work_df[work_df[matched_col].notna()]
 
-    if not results:
-        results.append({
-            "status": "skipped",
-            "reason": "no valid patient rows after split",
-            "source": str(source_path),
-        })
+        if work_df.empty:
+            print(f"[SKIP] 工作表无有效患者ID: {source_path} | sheet={sheet_name}")
+            continue
 
-    return results
+        for patient_id, sub_df in work_df.groupby(matched_col, dropna=True):
+            patient_id = safe_str(patient_id)
+            if not patient_id:
+                continue
+
+            base_name = source_path.stem
+            safe_sheet = str(sheet_name).strip().replace("/", "_").replace("\\", "_")
+            out_name = f"{base_name}__{safe_sheet}.csv"
+
+            dst = OUTPUT_ROOT / patient_id / modality / rel_parent / out_name
+            ensure_parent(dst)
+            sub_df.to_csv(dst, index=False, encoding="utf-8-sig")
+            print(f"[TABLE] {source_path} | sheet={sheet_name} | patient={patient_id} -> {dst}")
 
 
 def main():
     if not RECORDS_PATH.exists():
-        raise FileNotFoundError(f"records.json not found: {RECORDS_PATH}")
+        raise FileNotFoundError(f"records.json 不存在: {RECORDS_PATH}")
 
-    with RECORDS_PATH.open("r", encoding="utf-8") as f:
+    with open(RECORDS_PATH, "r", encoding="utf-8") as f:
         records = json.load(f)
 
-    ensure_dir(OUTPUT_ROOT / "_meta")
-
-    summary = {
-        "total_records": len(records),
-        "copied": 0,
-        "split_written": 0,
-        "skipped": 0,
-        "details": [],
-    }
+    if not isinstance(records, list):
+        raise ValueError("records.json 格式错误：顶层应为列表")
 
     for record in records:
-        observations = record.get("observations", {}) or {}
+        source_path = Path(record["source_path"]).resolve()
+        observations = record.get("observations", {})
         modality = observations.get("modality")
-        source_name = record.get("source_name", "")
 
-        # 跳过明显无效的系统文件，但保留基于记录的处理逻辑
-        if source_name == ".DS_Store":
-            summary["skipped"] += 1
-            summary["details"].append({
-                "status": "skipped",
-                "reason": "system file",
-                "source": record.get("source_path"),
-            })
+        if not source_path.exists():
+            print(f"[SKIP] 源文件不存在: {source_path}")
             continue
 
         if modality == "table":
-            results = split_table_file(record)
-            for item in results:
-                summary["details"].append(item)
-                if item["status"] == "split_written":
-                    summary["split_written"] += 1
-                elif item["status"] == "copied":
-                    summary["copied"] += 1
-                else:
-                    summary["skipped"] += 1
+            split_table_file(record)
         else:
-            result = copy_regular_file(record)
-            summary["details"].append(result)
-            if result["status"] == "copied":
-                summary["copied"] += 1
-            else:
-                summary["skipped"] += 1
+            copy_single_file(record)
 
-    summary_path = OUTPUT_ROOT / "_meta" / "run_summary.json"
-    with summary_path.open("w", encoding="utf-8") as f:
-        json.dump(summary, f, ensure_ascii=False, indent=2)
-
-    print(json.dumps({
-        "message": "reorganization finished",
-        "summary_path": str(summary_path),
-        "total_records": summary["total_records"],
-        "copied": summary["copied"],
-        "split_written": summary["split_written"],
-        "skipped": summary["skipped"],
-    }, ensure_ascii=False, indent=2))
+    print("[DONE] 重组完成")
 
 
 if __name__ == "__main__":

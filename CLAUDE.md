@@ -71,3 +71,4 @@ Step4 / Step5 / Step6 在读取上游产物时，均采用“**next_input 优先
 
 - Step2_3 在检测到 liver jsonl 时，优先走 liver 专项批处理分支。
 - 文档与代码冲突时，以代码为准（优先查看 `main_orchestrator/step_wrappers.py`）。
+- 协作时不要优先使用子代理；仅在主上下文不足、需要并行独立调研或用户明确要求时再使用子代理。

@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from agentscope.model import OllamaChatModel
+from agentscope.model import OpenAIChatModel
 from pydantic import BaseModel, Field
 
 from .models import Bullet, BulletTag, ReflectionResult, normalize_section
@@ -500,7 +500,7 @@ class ACEReflector:
         temperature: float,
         seed: int,
         enable_thinking: bool | None = False,
-        model_cls=OllamaChatModel,
+        model_cls=OpenAIChatModel,
         model_factory: Callable[[], Any] | None = None,
     ):
         self.model_name = model_name

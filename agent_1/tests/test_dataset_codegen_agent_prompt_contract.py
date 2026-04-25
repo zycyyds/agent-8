@@ -15,7 +15,9 @@ from agent_1.codegen_agent import (
     extract_generated_script,
     normalize_generated_script,
     remove_existing_generated_script,
+    rewrite_generated_script_paths,
     run_react_codegen_cycle,
+    run_step1_codegen,
     sanitize_agent_output,
     serialize_runtime_result,
     create_codegen_agent,
@@ -37,6 +39,8 @@ def test_build_react_system_prompt_mentions_three_tool_sequence():
     assert "record_table_split_strategy" in prompt
     assert "先记录，再生成脚本" in prompt
     assert "reorganized_output/_meta/records.json" in prompt
+    assert "reorganized_output/<patient_id>/<modality>/<relative_parent_dirs>/<filename>" in prompt
+    assert "relative_parent_dirs 来自原始输入根目录下的相对父目录，可为空" in prompt
 
 
 
@@ -85,8 +89,8 @@ def test_validate_generated_script_contract_allows_script_without_explicit_recor
 def test_validate_generated_script_contract_allows_records_json_and_jpg_copy_in_same_script():
     result = validate_generated_script_contract(
         'records = json.loads((output_root / "_meta" / "records.json").read_text(encoding="utf-8"))\n'
-        'source_path = os.path.join(input_root, "36907.jpg")\n'
-        'target_path = os.path.join(output_root, patient_id, "figure", "36907.jpg")\n'
+        'source_path = os.path.join(input_root, "实验室检查", "36907.jpg")\n'
+        'target_path = os.path.join(output_root, patient_id, "figure", "实验室检查", "36907.jpg")\n'
         'shutil.copy2(source_path, target_path)\n'
     )
 
@@ -315,17 +319,19 @@ class ObservationThenCodegenAgent:
 
 
 
-def test_run_react_codegen_cycle_initializes_empty_records_before_agent_execution(monkeypatch, tmp_path):
+def test_run_react_codegen_cycle_initializes_records_under_observation_root(monkeypatch, tmp_path):
     input_root = tmp_path / "input"
     image_file = input_root / "垂直眼位" / "36906(1).jpg"
     image_file.parent.mkdir(parents=True)
     image_file.write_text("img", encoding="utf-8")
+    output_root = tmp_path / "program" / "output" / "step1_results"
+    observation_root = tmp_path / "reorganized_output"
     script_path = tmp_path / "generated_reorganizer.py"
     captured = {}
 
     class OneShotAgent:
         async def __call__(self, msg):
-            records_path = Path(dataset_codegen_agent_module.PROJECT_ROOT) / "reorganized_output" / "_meta" / "records.json"
+            records_path = observation_root / "_meta" / "records.json"
             captured["records_before_agent"] = json.loads(records_path.read_text(encoding="utf-8"))
             return Msg(
                 name="Dataset Codegen Agent",
@@ -338,6 +344,7 @@ def test_run_react_codegen_cycle_initializes_empty_records_before_agent_executio
         return {"status": "SUCCESS", "content": "write ok"}
 
     async def fake_execute_shell_command(command: str, timeout: int = 300, **kwargs):
+        captured["execute_timeout"] = timeout
         return {
             "status": "SUCCESS",
             "content": "<returncode>0</returncode><stdout></stdout><stderr></stderr>",
@@ -345,10 +352,13 @@ def test_run_react_codegen_cycle_initializes_empty_records_before_agent_executio
 
     monkeypatch.setattr("agent_1.codegen_agent.write_text_file", fake_write_text_file)
     monkeypatch.setattr("agent_1.codegen_agent.execute_shell_command", fake_execute_shell_command)
+    monkeypatch.setattr("agent_1.codegen_agent.OBSERVATION_RECORDS_PATH", Path("reorganized_output/_meta/records.json"))
+    monkeypatch.setattr("agent_1.codegen_agent.PROJECT_ROOT", tmp_path)
 
     result = asyncio.run(
         run_react_codegen_cycle(
             input_path=str(input_root),
+            output_root=output_root,
             agent=OneShotAgent(),
             emit=lambda _: None,
             script_path=script_path,
@@ -358,12 +368,132 @@ def test_run_react_codegen_cycle_initializes_empty_records_before_agent_executio
 
     assert result["status"] == "SUCCESS"
     assert captured["records_before_agent"] == []
+    assert captured["execute_timeout"] is None
+    written_script = script_path.read_text(encoding="utf-8")
+    assert 'output_root = Path.cwd() / "reorganized_output"' not in written_script
+    assert f'records_path = Path(r"{(observation_root / "_meta" / "records.json").resolve()}")' in written_script
+    assert 'records = json.loads(records_path.read_text(encoding="utf-8"))' in written_script
+
+
+
+def test_rewrite_generated_script_paths_rewrites_plain_output_root_literal(tmp_path):
+    output_root = tmp_path / "program" / "output" / "step1_results"
+    records_path = tmp_path / "reorganized_output" / "_meta" / "records.json"
+    rewritten = rewrite_generated_script_paths(
+        'OUTPUT_ROOT = Path("reorganized_output")\nRECORDS_PATH = OUTPUT_ROOT / "_meta" / "records.json"\n',
+        output_root=output_root,
+        records_path=records_path,
+    )
+
+    assert f'OUTPUT_ROOT = Path(r"{output_root.resolve()}")' in rewritten
+    assert f'RECORDS_PATH = Path(r"{records_path.resolve()}")' in rewritten
+    assert 'Path("reorganized_output")' not in rewritten
+
+
+
+def test_run_step1_codegen_sets_and_clears_observation_records_runtime_path(monkeypatch, tmp_path):
+    events = []
+
+    def fake_set(records_path):
+        events.append(("set", Path(records_path)))
+
+    def fake_clear():
+        events.append(("clear", None))
+
+    async def fake_create_codegen_agent(toolkit):
+        return object()
+
+    async def fake_cycle(**kwargs):
+        return {
+            "status": "SUCCESS",
+            "rounds_used": 1,
+            "write_result": {"status": "SUCCESS", "content": "write ok"},
+            "execute_result": {"status": "SUCCESS", "content": "<returncode>0</returncode><stdout></stdout><stderr></stderr>"},
+        }
+
+    monkeypatch.setattr("agent_1.codegen_agent.set_step1_records_path", fake_set)
+    monkeypatch.setattr("agent_1.codegen_agent.clear_step1_records_path", fake_clear)
+    monkeypatch.setattr("agent_1.codegen_agent.create_codegen_agent", fake_create_codegen_agent)
+    monkeypatch.setattr("agent_1.codegen_agent.run_react_codegen_cycle", fake_cycle)
+    monkeypatch.setattr("agent_1.codegen_agent.load_toolkit_from_config", lambda path: types.SimpleNamespace(register_tool_function=lambda fn: None))
+    monkeypatch.setattr("agent_1.codegen_agent.PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr("agent_1.codegen_agent.OBSERVATION_RECORDS_PATH", Path("reorganized_output/_meta/records.json"))
+
+    output_root = tmp_path / "program" / "output" / "step1_results"
+    asyncio.run(run_step1_codegen(input_path="/tmp/rawdata", output_root=output_root, emit=lambda *_: None))
+
+    assert events[0] == ("set", tmp_path / "reorganized_output" / "_meta" / "records.json")
+    assert events[-1] == ("clear", None)
+
+
+
+def test_run_step1_codegen_returns_wrapper_contract(monkeypatch, tmp_path):
+    output_root = tmp_path / "program" / "output" / "step1_results"
+    records_path = tmp_path / "reorganized_output" / "_meta" / "records.json"
+    script_path = tmp_path / "generated_reorganizer.py"
+
+    async def fake_create_codegen_agent(toolkit):
+        return object()
+
+    async def fake_run_react_codegen_cycle(*, input_path: str, output_root: Path, agent, emit=print, script_path=GENERATED_SCRIPT_PATH, max_rounds: int = 1):
+        records_path.parent.mkdir(parents=True, exist_ok=True)
+        records_path.write_text("[]", encoding="utf-8")
+        Path(script_path).write_text("print('ok')", encoding="utf-8")
+        emit("第 1 轮\n本轮说明：已完成。\n工具调用摘要：record_source_file\n结果摘要：成功。")
+        return {
+            "status": "SUCCESS",
+            "rounds_used": 1,
+            "write_result": {"status": "SUCCESS", "content": "write ok"},
+            "execute_result": {"status": "SUCCESS", "content": "<returncode>0</returncode><stdout></stdout><stderr></stderr>"},
+        }
+
+    monkeypatch.setattr("agent_1.codegen_agent.create_codegen_agent", fake_create_codegen_agent)
+    monkeypatch.setattr("agent_1.codegen_agent.run_react_codegen_cycle", fake_run_react_codegen_cycle)
+    monkeypatch.setattr("agent_1.codegen_agent.load_toolkit_from_config", lambda path: types.SimpleNamespace(register_tool_function=lambda fn: None))
+    monkeypatch.setattr("agent_1.codegen_agent.PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr("agent_1.codegen_agent.OBSERVATION_RECORDS_PATH", Path("reorganized_output/_meta/records.json"))
+
+    result = asyncio.run(run_step1_codegen(input_path="/tmp/rawdata", output_root=output_root, emit=lambda *_: None, script_path=script_path))
+
+    assert result["status"] == "SUCCESS"
+    assert result["records_path"] == str(records_path)
+    assert result["generated_script_path"] == str(script_path)
+    assert result["step1_output_root"] == str(output_root)
+    assert result["summary_text"]
+    assert isinstance(result["raw_messages"], list)
+    assert isinstance(result["tool_events"], list)
+    assert result["runtime_result"]["status"] == "SUCCESS"
+
+
+
+def test_run_step1_codegen_keeps_runtime_issues_on_failure(monkeypatch, tmp_path):
+    async def fake_create_codegen_agent(toolkit):
+        return object()
+
+    async def fake_run_react_codegen_cycle(**kwargs):
+        return {
+            "status": "FAILED",
+            "rounds_used": 1,
+            "write_result": {"status": "SKIPPED", "content": "脚本尚未写入"},
+            "execute_result": {"status": "SKIPPED", "content": "脚本尚未执行"},
+            "issues": ["模型回复里没有完整 python 代码块"],
+        }
+
+    monkeypatch.setattr("agent_1.codegen_agent.create_codegen_agent", fake_create_codegen_agent)
+    monkeypatch.setattr("agent_1.codegen_agent.run_react_codegen_cycle", fake_run_react_codegen_cycle)
+    monkeypatch.setattr("agent_1.codegen_agent.load_toolkit_from_config", lambda path: types.SimpleNamespace(register_tool_function=lambda fn: None))
+
+    result = asyncio.run(run_step1_codegen(input_path="/tmp/rawdata", output_root=tmp_path / "step1_results", emit=lambda *_: None))
+
+    assert result["status"] == "FAILED"
+    assert result["runtime_result"]["issues"] == ["模型回复里没有完整 python 代码块"]
+    assert result["tool_events"][0]["status"] == "failed"
 
 
 
 def test_validate_generated_script_contract_keeps_focus_on_path_and_tool_constraints():
     result = validate_generated_script_contract(
-        "import shutil\nsource_path = input_root / 'a.jpg'\ntarget_path = output_root / '36906' / 'figure' / 'a.jpg'\nshutil.copy2(source_path, target_path)\n"
+        "import shutil\nsource_path = input_root / '实验室检查' / 'a.jpg'\ntarget_path = output_root / '36906' / 'figure' / '实验室检查' / 'a.jpg'\nshutil.copy2(source_path, target_path)\n"
     )
 
     assert result["passed"] is True
@@ -493,7 +623,12 @@ def test_run_react_codegen_cycle_normalizes_literal_newlines_before_writing(monk
         )
     )
 
-    assert script_path.read_text(encoding="utf-8") == 'records = json.loads((output_root / "_meta" / "records.json").read_text(encoding="utf-8"))\nprint(records)'
+    expected_records_path = str((Path.cwd() / "reorganized_output" / "_meta" / "records.json").resolve())
+    assert script_path.read_text(encoding="utf-8") == (
+        f'records_path = Path(r"{expected_records_path}")\n'
+        'records = json.loads(records_path.read_text(encoding="utf-8"))\n'
+        'print(records)'
+    )
 
 
 

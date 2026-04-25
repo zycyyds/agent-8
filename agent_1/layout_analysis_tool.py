@@ -1031,9 +1031,12 @@ def _process_table_file(src_path: str, dst_path: str) -> bool:
             shutil.copy2(src_path, dst_path)
             return True
 
-        # 删除全为空的列
+        # 删除全为空的列（含空字符串/纯空白字符串）
         original_cols = len(df.columns)
-        df_cleaned = df.dropna(how="all", axis=1)
+        blank_mask = df.apply(
+            lambda col: col.isna() | col.astype(str).str.strip().eq("")
+        )
+        df_cleaned = df.loc[:, ~blank_mask.all(axis=0)]
         dropped_cols = original_cols - len(df_cleaned.columns)
 
         if dropped_cols > 0:

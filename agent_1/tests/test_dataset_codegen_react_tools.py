@@ -1,12 +1,35 @@
 import json
+from pathlib import Path
 
 import agent_1.codegen_tools as react_tools
 from agent_1.codegen_tools import (
+    clear_step1_records_path,
     record_file_modality,
     record_source_file,
     record_table_split_strategy,
+    set_step1_records_path,
     validate_reorganized_contract,
 )
+
+
+def test_records_path_uses_runtime_override(tmp_path):
+    custom_records = tmp_path / "program" / "output" / "step1_results" / "_meta" / "records.json"
+    set_step1_records_path(custom_records)
+
+    try:
+        assert react_tools._records_path() == custom_records
+    finally:
+        clear_step1_records_path()
+
+
+
+def test_records_path_falls_back_after_runtime_override_cleared(tmp_path):
+    set_step1_records_path(tmp_path / "custom" / "records.json")
+    clear_step1_records_path()
+
+    expected = Path.cwd() / "reorganized_output" / "_meta" / "records.json"
+    assert react_tools._records_path() == expected
+
 
 
 def test_record_source_file_creates_minimal_record(monkeypatch, tmp_path):
@@ -83,13 +106,13 @@ def test_record_table_split_strategy_updates_split_fields(monkeypatch, tmp_path)
     assert stored[0]["observations"]["id_column"] == "patient_id"
 
 
-def test_validate_reorganized_contract_reports_extra_path_layer(tmp_path):
+def test_validate_reorganized_contract_accepts_extra_path_layer(tmp_path):
     input_dir = tmp_path / "input"
     input_dir.mkdir()
     output_root = tmp_path / "reorganized_output"
-    bad_file = output_root / "patient-123" / "table" / "ct_scan" / "labs.csv"
-    bad_file.parent.mkdir(parents=True)
-    bad_file.write_text("id,value\npatient-123,1\n", encoding="utf-8")
+    good_file = output_root / "patient-123" / "table" / "ct_scan" / "labs.csv"
+    good_file.parent.mkdir(parents=True)
+    good_file.write_text("id,value\npatient-123,1\n", encoding="utf-8")
     meta_dir = output_root / "_meta"
     meta_dir.mkdir(parents=True)
     records_path = meta_dir / "records.json"
@@ -97,7 +120,7 @@ def test_validate_reorganized_contract_reports_extra_path_layer(tmp_path):
         json.dumps(
             [
                 {
-                    "source_path": "rawdata/labs.csv",
+                    "source_path": "rawdata/ct_scan/labs.csv",
                     "source_name": "labs.csv",
                     "source_extension": ".csv",
                     "source_type": "table",
@@ -121,8 +144,7 @@ def test_validate_reorganized_contract_reports_extra_path_layer(tmp_path):
         records_path=str(records_path),
     )
 
-    assert result["passed"] is False
-    assert "输出路径层级不是 id/模态/文件" in result["issues"]
+    assert result["passed"] is True
     assert result["records_count"] == 1
 
 
@@ -233,6 +255,84 @@ def test_validate_reorganized_contract_accepts_current_runtime_record_schema(tmp
     assert result["passed"] is True
     assert result["records_count"] == 1
     assert result["output_file_count"] == 1
+
+
+def test_validate_reorganized_contract_accepts_two_extra_path_layers(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    output_root = tmp_path / "reorganized_output"
+    nested_file = output_root / "36906" / "figure" / "检查A" / "子类B" / "a.jpg"
+    nested_file.parent.mkdir(parents=True)
+    nested_file.write_text("img", encoding="utf-8")
+    meta_dir = output_root / "_meta"
+    meta_dir.mkdir(parents=True)
+    records_path = meta_dir / "records.json"
+    records_path.write_text(
+        json.dumps(
+            [
+                {
+                    "source_path": "rawdata/检查A/子类B/a.jpg",
+                    "source_name": "a.jpg",
+                    "patient_id": "36906",
+                    "observations": {
+                        "modality": "figure",
+                        "should_split": False,
+                        "id_column": None,
+                    },
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = validate_reorganized_contract(
+        input_path=str(input_dir),
+        output_root=str(output_root),
+        records_path=str(records_path),
+    )
+
+    assert result["passed"] is True
+    assert result["output_file_count"] == 1
+
+
+def test_validate_reorganized_contract_rejects_too_shallow_path(tmp_path):
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    output_root = tmp_path / "reorganized_output"
+    bad_file = output_root / "36906" / "a.jpg"
+    bad_file.parent.mkdir(parents=True)
+    bad_file.write_text("img", encoding="utf-8")
+    meta_dir = output_root / "_meta"
+    meta_dir.mkdir(parents=True)
+    records_path = meta_dir / "records.json"
+    records_path.write_text(
+        json.dumps(
+            [
+                {
+                    "source_path": "rawdata/a.jpg",
+                    "source_name": "a.jpg",
+                    "patient_id": "36906",
+                    "observations": {
+                        "modality": "figure",
+                        "should_split": False,
+                        "id_column": None,
+                    },
+                }
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = validate_reorganized_contract(
+        input_path=str(input_dir),
+        output_root=str(output_root),
+        records_path=str(records_path),
+    )
+
+    assert result["passed"] is False
+    assert "输出路径层级至少应为 id/模态/文件，允许中间目录" in result["issues"]
 
 
 def test_validate_reorganized_contract_reports_missing_business_outputs_instead_of_missing_directory(tmp_path):

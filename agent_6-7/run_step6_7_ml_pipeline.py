@@ -266,12 +266,16 @@ def _read_data(path: str) -> "pd.DataFrame":
     """
     读取 CSV 并规范化患者 ID 列名为 'patient_id'。
 
-    在 MIMIC 模式下，PATIENT_ID_COL='record_index'，会自动重命名为 'patient_id'，
-    使后续所有工具代码保持统一。原始数据模式下此函数等价于 pd.read_csv()。
+    在 MIMIC 模式下，PATIENT_ID_COL='record_index'，会自动重命名为 'patient_id'。
+    若上游输出使用通用 id 列，也会统一映射为 'patient_id'。
     """
     df = pd.read_csv(path)
+    if "patient_id" in df.columns:
+        return df
     if PATIENT_ID_COL != "patient_id" and PATIENT_ID_COL in df.columns:
-        df = df.rename(columns={PATIENT_ID_COL: "patient_id"})
+        return df.rename(columns={PATIENT_ID_COL: "patient_id"})
+    if "id" in df.columns:
+        return df.rename(columns={"id": "patient_id"})
     return df
 
 

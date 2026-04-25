@@ -6,11 +6,19 @@ import os
 import random
 import re
 import shutil
+import sys
 from contextlib import contextmanager
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 from agentscope.message import Msg
+
+PROJECT_ROOT = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from configs.loader import get_agent_config
 
 try:
     from .agents.cleaner_designer_agent import create_cleaner_designer_agent
@@ -24,6 +32,7 @@ except ImportError:
 
 load_dotenv()
 
+AGENT_CFG = get_agent_config("step4_data_quality_repair")
 ALLOWED_IMPORTS = {"pandas", "os", "re", "agentscope.tool"}
 SAMPLE_SIZE = 20
 MAX_ANALYSIS_RETRIES = 3
@@ -86,6 +95,18 @@ def resolve_input_csv(data_path: str) -> str:
 def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = [str(col).replace("\ufeff", "").strip() for col in df.columns]
     return df
+
+
+def get_max_columns() -> int | None:
+    raw = os.environ.get("STEP4_MAX_COLUMNS")
+    if raw is None:
+        raw = AGENT_CFG.get("max_columns")
+    if raw in (None, ""):
+        return None
+    value = int(raw)
+    if value <= 0:
+        return None
+    return value
 
 
 def safe_name(name: str) -> str:
@@ -415,6 +436,7 @@ def format_run_summary(result: dict) -> str:
             f"详细报告: {result.get('detailed_report_path', '')}",
             f"失败列记录: {result.get('failed_columns_path', '')}",
             f"成功生成 cleaner 数: {result.get('generated_cleaners', 0)}",
+            f"处理列数: {result.get('processed_columns', 0)}/{result.get('total_columns', 0)}",
             f"生成失败列数: {len(result.get('generation_failures', {}))}",
             f"运行失败列数: {len(result.get('runtime_failures', {}))}",
         ]
@@ -448,6 +470,9 @@ async def run_data_quality_repair(
         "generated_cleaners": 0,
         "generation_failures": {},
         "runtime_failures": {},
+        "max_columns": get_max_columns(),
+        "processed_columns": 0,
+        "total_columns": 0,
         "error": "",
     }
 
@@ -465,15 +490,22 @@ async def run_data_quality_repair(
             os.makedirs(cleaner_root, exist_ok=True)
 
             df = normalize_columns(pd.read_csv(csv_path, dtype=str, keep_default_na=False, na_values=[""]))
-            human_knowledge, _ = initialize_knowledge_files(list(df.columns), human_path, derived_path)
+            columns = list(df.columns)
+            max_columns = get_max_columns()
+            selected_columns = columns[:max_columns] if max_columns is not None else columns
+            result["total_columns"] = len(columns)
+            result["processed_columns"] = len(selected_columns)
+            human_knowledge, _ = initialize_knowledge_files(selected_columns, human_path, derived_path)
             if verbose:
                 print("🧠 已按当前数据集重建 human_knowledge.json")
                 print("🧠 已初始化 derived_knowledge.json")
+                if max_columns is not None and len(columns) > len(selected_columns):
+                    print(f"⚠️ 已启用列数限制：仅处理前 {len(selected_columns)} 列，共 {len(columns)} 列")
 
             cleaners = {}
             generation_failures = {}
 
-            for column in df.columns:
+            for column in selected_columns:
                 values = sample_values(df[column])
                 if not values:
                     continue
